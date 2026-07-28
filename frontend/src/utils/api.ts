@@ -1,7 +1,11 @@
 import axios from 'axios';
 
+const backendUrl = import.meta.env.VITE_BACKEND_URL 
+  ? `${import.meta.env.VITE_BACKEND_URL}/api` 
+  : import.meta.env.VITE_API_URL;
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000/api`,
+  baseURL: backendUrl || `http://${window.location.hostname}:5000/api`,
 });
 
 api.interceptors.request.use(

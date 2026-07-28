@@ -40,15 +40,11 @@ services:
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
     envVars:
-      - key: VITE_API_URL
+      - key: VITE_BACKEND_URL
         fromService:
           type: web
           name: expense-tracker-backend
-          property: hostport
-        # Note: We prefix with https:// and append /api
-        # Render doesn't natively support string interpolation for fromService,
-        # so you may need to manually override VITE_API_URL in the dashboard to:
-        # https://expense-tracker-backend.onrender.com/api
+          property: url
     routes:
       - type: rewrite
         source: /*
