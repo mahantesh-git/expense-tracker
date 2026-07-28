@@ -8,6 +8,7 @@ import AdminUserDetail from './pages/AdminUserDetail';
 import IPaidPage from './pages/IPaidPage';
 import IWasChargedPage from './pages/IWasChargedPage';
 import BalancesPage from './pages/BalancesPage';
+import ClientRequestsPage from './pages/ClientRequestsPage';
 import { InstallPrompt } from './components/InstallPrompt';
 
 const PrivateRoute = ({ children, role }: { children: React.ReactNode, role?: 'admin' | 'client' }) => {
@@ -64,6 +65,12 @@ const AppRoutes = () => {
       <Route path="/client/balances" element={
         <PrivateRoute role="client">
           <BalancesPage />
+        </PrivateRoute>
+      } />
+
+      <Route path="/client/requests" element={
+        <PrivateRoute role="client">
+          <ClientRequestsPage />
         </PrivateRoute>
       } />
 

@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+
 import { Button } from '../components/ui/Button';
+import { NotificationDropdown } from '../components/ui/NotificationDropdown';
 import api from '../utils/api';
 
 const IWasChargedPage = () => {
@@ -30,15 +32,18 @@ const IWasChargedPage = () => {
 
   return (
     <div className="p-4 md:p-6 space-y-5 w-full page-enter">
-      <header className="flex items-center gap-4 pb-4" style={{ borderBottom: '1px solid var(--border)' }}>
+      <header className="flex items-center gap-4 pb-4 border-b border-zinc-800">
         <Button variant="ghost" size="sm" onClick={() => navigate('/client')}>← Back</Button>
-        <div>
+        <div className="flex-1">
           <h1 className="text-xl font-semibold">I Was Charged</h1>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{expenses.length} bills include you</p>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{expenses.length} bills I am a part of</p>
         </div>
-        <div className="ml-auto text-right">
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Your Total</p>
-          <p className="text-xl font-semibold" style={{ color: 'var(--accent)' }}>₹{totalCharged.toFixed(2)}</p>
+        <div className="text-right flex items-center gap-4">
+          <div>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>My Share</p>
+            <p className="text-xl font-semibold" style={{ color: 'var(--color-danger)' }}>₹{totalCharged.toFixed(2)}</p>
+          </div>
+          <NotificationDropdown />
         </div>
       </header>
 

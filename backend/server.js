@@ -17,6 +17,8 @@ app.use(express.json());
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/expenses', require('./routes/expenseRoutes'));
 app.use('/api/settlements', require('./routes/settlementRoutes'));
+app.use('/api/expense-requests', require('./routes/expenseRequestRoutes'));
+app.use('/api/notifications', require('./routes/notificationRoutes'));
 
 // Database Connection
 const PORT = process.env.PORT || 5000;
@@ -30,9 +32,10 @@ mongoose.connect(MONGODB_URI)
     const userCount = await User.countDocuments();
     if (userCount === 0) {
       const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash('admin123', salt);
+      const hashedPassword = await bcrypt.hash(process.env.ADMIN_PASSWORD, salt);
       await User.create({
         username: 'admin',
+        email: process.env.EMAIL_ADDRESS,
         password: hashedPassword,
         role: 'admin'
       });

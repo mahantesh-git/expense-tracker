@@ -2,21 +2,20 @@ const express = require('express');
 const router = express.Router();
 const Expense = require('../models/Expense');
 const { protect, admin } = require('../middleware/auth');
+const mongoose=require('mongoose')
 
 // @route   POST /api/expenses
-// @desc    Create an expense
-// @access  Private (Admin can create for anyone, Client for themselves)
-router.post('/', protect, async (req, res) => {
+// @desc    Create an expense directly (Admin only)
+//          Clients must use POST /api/expense-requests instead — direct writes are blocked.
+// @access  Admin
+router.post('/', protect, admin, async (req, res) => {
   try {
     const { description, amount, splits, payer } = req.body;
-    
-    // If client, force payer to be themselves
-    const actualPayer = req.user.role === 'admin' ? payer : req.user._id;
 
     const expense = await Expense.create({
       description,
       amount,
-      payer: actualPayer,
+      payer,
       splits
     });
 

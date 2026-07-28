@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { NotificationDropdown } from '../components/ui/NotificationDropdown';
 import api from '../utils/api';
 
 const AdminUserDetail = () => {
@@ -31,6 +32,7 @@ const AdminUserDetail = () => {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSuccess, setResetSuccess] = useState('');
   const [resetError, setResetError] = useState('');
+  const [reset_otp, setResetOtp] = useState('');
 
   const fetchData = async () => {
     try {
@@ -141,6 +143,20 @@ const AdminUserDetail = () => {
     }
   };
 
+  const otp=async (e:React.FormEvent)=>{
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await api.post(`/auth/reset-password-otp/${targetUser.email}`, { });
+      setLoading(false);
+    } catch (error) {
+      console.error('Error sending OTP', error);
+      setLoading(false);
+    } finally{
+      setLoading(false);
+    }
+  }
+
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setResetError('');
@@ -155,7 +171,7 @@ const AdminUserDetail = () => {
     }
     setResetLoading(true);
     try {
-      await api.put(`/auth/reset-password/${id}`, { newPassword });
+      await api.put(`/auth/reset-password/${id}`, { newPassword, otp: reset_otp, email: targetUser.email });
       setResetSuccess('Password has been reset successfully.');
       setNewPassword('');
       setConfirmPassword('');
@@ -184,9 +200,12 @@ const AdminUserDetail = () => {
           <h1 className="text-2xl font-semibold tracking-tight">{targetUser.username}</h1>
           <p className="text-sm text-zinc-400 mt-1">Client Ledger & Management</p>
         </div>
-        <Button variant="secondary" size="sm" onClick={() => { setShowResetModal(true); setResetError(''); setResetSuccess(''); }}>
-          Reset Password
-        </Button>
+        <div className="flex items-center gap-3">
+          <NotificationDropdown />
+          <Button variant="secondary" size="sm" onClick={() => { setShowResetModal(true); setResetError(''); setResetSuccess(''); }}>
+            Reset Password
+          </Button>
+        </div>
       </header>
 
       {/* Reset Password Modal */}
@@ -217,7 +236,40 @@ const AdminUserDetail = () => {
               </div>
             )}
 
+            <form onSubmit={otp}>
+              <Input
+                label="Email"
+                type="email"
+                value={targetUser.email}
+                required
+                disabled
+              />
+              <div className="flex gap-3 pt-1">
+                <Button type="submit" loading={loading} className="w-full" variant="danger" size="sm">
+                  Send OTP
+                </Button>
+                <Button type="button" onClick={otp} className="w-full" variant="danger" size="sm">
+                  Resend OTP
+                </Button>
+              </div>
+            </form>
+
             <form onSubmit={handleResetPassword} className="space-y-4">
+              <Input
+                label='email'
+                type="email"
+                value={targetUser.email}
+                required
+                disabled
+              />
+              <Input
+                label="OTP"
+                type="number"
+                placeholder="••••••••"
+                value={reset_otp}
+                onChange={(e) => setResetOtp(e.target.value)}
+                required
+              />
               <Input
                 label="New Password"
                 type="password"

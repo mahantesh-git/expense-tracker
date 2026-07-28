@@ -1,44 +1,31 @@
 services:
-    mongo:
-        image: mongo
-        container_name: mongo
-        env_file:
-            - ./.env.mongo
-        ports:
-          - "127.0.0.1:27017:27017"
-        volumes:
-          - quest-data:/data/db
-        networks:
-          - n8n_network
-          - mongo-data-network
-    
-    mongo-express:
-        image: mongo-express
-        container_name: quest_mongo_express
-        profiles:
-            - quest-express
-        ports:
-            - "127.0.0.1:8081:8081"
-        
-        env_file:
-            - ./.env.mongo-express
-        depends_on:
-            - mongo
-        networks:
-            - mongo-data-network
 
+  backend:
+    container_name: expense-tracker-backend
+    restart: always
+    build: 
+      context: ./backend
+      dockerfile: dockerfile
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env
+    networks:
+        [expense-tracker]
 
-volumes:
-    piston_data:
-        external: true
-    quest-data:
-        external : true
+  frontend:
+    container_name: expense-tracker-frontend
+    restart: always
+    build:
+      context: ./frontend
+      dockerfile: dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+        [expense-tracker]
 
 networks:
-    n8n_network:
+    expense-tracker:
         external: true
-    quest:
-        external: true
-    mongo-data-network:
-        external: true
-    piston:

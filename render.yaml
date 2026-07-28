@@ -1,0 +1,55 @@
+services:
+  # ─── BACKEND WEB SERVICE ───
+  - type: web
+    name: expense-tracker-backend
+    env: node
+    region: oregon
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false # You must set this in the Render dashboard!
+      - key: JWT_SECRET
+        sync: false # You must set this in the Render dashboard!
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: FROM_NAME
+        value: Expense Tracker
+      - key: FROM_EMAIL
+        value: noreply@expense-tracker.com
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: EMAIL_ADDRESS
+        sync: false
+
+  # ─── FRONTEND STATIC SITE ───
+  - type: web
+    name: expense-tracker-frontend
+    env: static
+    region: oregon
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: expense-tracker-backend
+          property: hostport
+        # Note: We prefix with https:// and append /api
+        # Render doesn't natively support string interpolation for fromService,
+        # so you may need to manually override VITE_API_URL in the dashboard to:
+        # https://expense-tracker-backend.onrender.com/api
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
