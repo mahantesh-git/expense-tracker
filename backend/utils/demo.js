@@ -9,24 +9,16 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(async () => {
     console.log('Connected to MongoDB');
     
-    const users = await User.find({});
-    console.log(`Found ${users.length} users.`);
-    
-    if (users.length !== 0) {
-      for (const element of users) {
-        // We probably don't want to change the admin's password
-        if (element.role === 'admin') {
-          console.log(`Skipping admin user: ${element.username}`);
-          continue;
-        }
+    const users = await User.findOne({username:'admin'});
+    //console.log(`Found ${users.length} users.`);
+    console.log(users)
 
-        console.log(`Updating password for: ${element.username}`);
+
+        console.log(`Updating password for: ${users}`);
         const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(element.username, salt);
-        element.password = hashedPassword;
-        await element.save();
-      }
-    }
+        const hashedPassword = await bcrypt.hash("Expense-tracker@0809", salt);
+        users.password = hashedPassword;
+        await users.save();
     
     console.log('Done!');
     process.exit(0);
