@@ -1,8 +1,21 @@
 import axios from 'axios';
 
-const backendUrl = import.meta.env.VITE_BACKEND_URL 
-  ? `${import.meta.env.VITE_BACKEND_URL}/api` 
-  : import.meta.env.VITE_API_URL;
+let backendUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || '';
+
+if (backendUrl) {
+  // Ensure it has a protocol
+  if (!backendUrl.startsWith('http')) {
+    backendUrl = `https://${backendUrl}`;
+  }
+  // Remove trailing slash
+  if (backendUrl.endsWith('/')) {
+    backendUrl = backendUrl.slice(0, -1);
+  }
+  // Ensure it ends with /api
+  if (!backendUrl.endsWith('/api')) {
+    backendUrl = `${backendUrl}/api`;
+  }
+}
 
 const api = axios.create({
   baseURL: backendUrl || `http://${window.location.hostname}:5000/api`,
