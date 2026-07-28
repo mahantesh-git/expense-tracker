@@ -35,7 +35,6 @@ services:
   - type: web
     name: expense-tracker-frontend
     env: static
-    region: oregon
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
