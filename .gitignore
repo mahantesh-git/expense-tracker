@@ -48,3 +48,6 @@ coverage/
 
 # Agent/AI directories
 .gemini/
+
+#file
+./backend/utils/migrateDB.js
