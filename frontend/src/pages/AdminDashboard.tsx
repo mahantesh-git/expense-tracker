@@ -6,6 +6,8 @@ import { Input } from '../components/ui/Input';
 import api from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 import { NotificationDropdown } from '../components/ui/NotificationDropdown';
+import { SkeletonStats, SkeletonRow } from '../components/ui/Skeleton';
+import AnimatedNumber from '../components/ui/AnimatedNumber';
 
 // ─── Types ────────────────────────────────────
 type RequestStatus = 'pending' | 'approved' | 'rejected';
@@ -21,6 +23,7 @@ const AdminDashboard = () => {
 
   const [newUsername, setNewUsername] = useState('');
   const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
   const [newEmail, setNewEmail] = useState('');
 
   // Per-request action state
@@ -28,7 +31,8 @@ const AdminDashboard = () => {
   const [rejectNotes, setRejectNotes] = useState<Record<string, string>>({});
   const [rejectOpen, setRejectOpen] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (showSkeleton = false) => {
+    if (showSkeleton) setDataLoading(true);
     try {
       const [usersRes, expRes, reqRes] = await Promise.all([
         api.get('/auth/users'),
@@ -40,12 +44,14 @@ const AdminDashboard = () => {
       setRequests(reqRes.data);
     } catch (error) {
       console.error('Failed to fetch admin data', error);
+    } finally {
+      setDataLoading(false);
     }
   }, []);
 
   useEffect(() => { 
-    fetchData(); 
-    const interval = setInterval(fetchData, 10000); // Auto-refresh every 10s
+    fetchData(true); // show skeleton on first load
+    const interval = setInterval(() => fetchData(false), 10000); // silent refresh
     return () => clearInterval(interval);
   }, [fetchData]);
 
@@ -122,10 +128,13 @@ const AdminDashboard = () => {
       </header>
 
       {/* ── Stats Row ─────────────────────────── */}
+      {dataLoading ? <SkeletonStats count={3} /> : (
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <Card>
           <p className="text-sm font-medium text-zinc-400 mb-1">Global Volume</p>
-          <p className="text-3xl font-semibold text-zinc-100">₹{totalSpentGlobal.toFixed(2)}</p>
+          <p className="text-3xl font-semibold text-zinc-100">
+            <AnimatedNumber value={totalSpentGlobal} prefix="₹" />
+          </p>
         </Card>
         <Card>
           <p className="text-sm font-medium text-zinc-400 mb-1">Active Clients</p>
@@ -134,13 +143,16 @@ const AdminDashboard = () => {
         <Card className="col-span-2 sm:col-span-1">
           <p className="text-sm font-medium text-zinc-400 mb-1">Pending Requests</p>
           <div className="flex items-center gap-3">
-            <p className="text-3xl font-semibold text-amber-400">{pendingCount}</p>
+            <p className="text-3xl font-semibold text-amber-400">
+              <AnimatedNumber value={pendingCount} decimals={0} duration={600} />
+            </p>
             {pendingCount > 0 && (
               <span className="w-2.5 h-2.5 bg-amber-400 rounded-full animate-pulse" />
             )}
           </div>
         </Card>
       </div>
+      )}
 
       {/* ── Pending Requests Panel ─────────────── */}
       <Card>
@@ -171,7 +183,11 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {displayedRequests.length === 0 ? (
+        {dataLoading ? (
+          <div className="space-y-3">
+            {[1,2,3].map(i => <SkeletonRow key={i} />)}
+          </div>
+        ) : displayedRequests.length === 0 ? (
           <div className="py-10 text-center">
             <p className="text-3xl mb-3">✅</p>
             <p className="text-zinc-400 text-sm">

@@ -4,6 +4,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { NotificationDropdown } from '../components/ui/NotificationDropdown';
+import { SkeletonStats, SkeletonRow } from '../components/ui/Skeleton';
 import api from '../utils/api';
 
 const AdminUserDetail = () => {
@@ -22,6 +23,7 @@ const AdminUserDetail = () => {
   const [customSplits, setCustomSplits] = useState<Record<string, number>>({});
   
   const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
   const [balances, setBalances] = useState<any[]>([]); 
   const [expenses, setExpenses] = useState<any[]>([]);
 
@@ -81,6 +83,8 @@ const AdminUserDetail = () => {
       
     } catch (error) {
       console.error('Failed to fetch data', error);
+    } finally {
+      setDataLoading(false);
     }
   };
 
@@ -186,7 +190,15 @@ const AdminUserDetail = () => {
     }
   };
 
-  if (!targetUser) return <div className="p-6 text-zinc-400">Loading...</div>;
+  if (dataLoading) return (
+    <div className="p-4 md:p-6 space-y-6 w-full">
+      <div className="h-8 w-40 bg-zinc-800 rounded animate-pulse" />
+      <SkeletonStats count={3} />
+      <div className="space-y-3">
+        {[1,2,3].map(i => <SkeletonRow key={i} />)}
+      </div>
+    </div>
+  );
 
   const clients = users.filter(u => u.role !== 'admin');
 

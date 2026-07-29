@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { NotificationDropdown } from '../components/ui/NotificationDropdown';
+import AnimatedNumber from '../components/ui/AnimatedNumber';
 import api from '../utils/api';
 
 const BalancesPage = () => {
@@ -112,12 +113,16 @@ const BalancesPage = () => {
       <div className="grid grid-cols-2 gap-3">
         <div className="p-3 rounded-lg" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
           <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Others Owe You</p>
-          <p className="text-xl font-semibold mt-1" style={{ color: 'var(--color-success)' }}>₹{owedToYou.reduce((a, [, b]) => a + b.net, 0).toFixed(2)}</p>
+          <p className="text-xl font-semibold mt-1" style={{ color: 'var(--color-success)' }}>
+            <AnimatedNumber value={owedToYou.reduce((a, [, b]) => a + b.net, 0)} prefix="₹" />
+          </p>
           <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{owedToYou.length} {owedToYou.length === 1 ? 'person' : 'people'}</p>
         </div>
         <div className="p-3 rounded-lg" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
           <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>You Owe Others</p>
-          <p className="text-xl font-semibold mt-1" style={{ color: 'var(--accent)' }}>₹{youOwe.reduce((a, [, b]) => a + Math.abs(b.net), 0).toFixed(2)}</p>
+          <p className="text-xl font-semibold mt-1" style={{ color: 'var(--accent)' }}>
+            <AnimatedNumber value={youOwe.reduce((a, [, b]) => a + Math.abs(b.net), 0)} prefix="₹" />
+          </p>
           <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{youOwe.length} {youOwe.length === 1 ? 'person' : 'people'}</p>
         </div>
       </div>

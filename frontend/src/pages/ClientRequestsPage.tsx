@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { NotificationDropdown } from '../components/ui/NotificationDropdown';
+import { SkeletonRow } from '../components/ui/Skeleton';
 import api from '../utils/api';
 
 const statusConfig: Record<string, { label: string; dot: string; text: string; bg: string }> = {
@@ -95,9 +96,7 @@ const ClientRequestsPage = () => {
       {/* Request List */}
       {loading ? (
         <div className="space-y-3">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-24 bg-zinc-900 rounded-xl border border-zinc-800 animate-pulse" />
-          ))}
+          {[1, 2, 3].map(i => <SkeletonRow key={i} />)}
         </div>
       ) : filtered.length === 0 ? (
         <Card>

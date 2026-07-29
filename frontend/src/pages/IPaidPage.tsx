@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { NotificationDropdown } from '../components/ui/NotificationDropdown';
+import AnimatedNumber from '../components/ui/AnimatedNumber';
 import api from '../utils/api';
 
 const IPaidPage = () => {
@@ -31,7 +32,9 @@ const IPaidPage = () => {
         <div className="text-right flex items-center gap-4">
           <div>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Total</p>
-            <p className="text-xl font-semibold" style={{ color: 'var(--color-success)' }}>₹{total.toFixed(2)}</p>
+            <p className="text-xl font-semibold" style={{ color: 'var(--color-success)' }}>
+              <AnimatedNumber value={total} prefix="₹" />
+            </p>
           </div>
           <NotificationDropdown />
         </div>

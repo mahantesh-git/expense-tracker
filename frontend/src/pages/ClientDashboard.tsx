@@ -5,6 +5,8 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { NotificationDropdown } from '../components/ui/NotificationDropdown';
+import { SkeletonStats, SkeletonRow } from '../components/ui/Skeleton';
+import AnimatedNumber from '../components/ui/AnimatedNumber';
 import api from '../utils/api';
 
 // ─── Types ────────────────────────────────────
@@ -32,33 +34,37 @@ const ClientDashboard = () => {
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
 
   const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
   const [formError, setFormError] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
   // ─── Fetch ──────────────────────────────────
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (showSkeleton = false) => {
+    if (showSkeleton) setDataLoading(true);
     try {
       const [expRes, settRes, usersRes, reqRes] = await Promise.allSettled([
         api.get('/expenses'),
         api.get('/settlements'),
-        api.get('/auth/peers'),        // client-accessible endpoint — not admin-only
+        api.get('/auth/peers'),
         api.get('/expense-requests'),
       ]);
 
       if (expRes.status === 'fulfilled')   setExpenses(expRes.value.data);
       if (settRes.status === 'fulfilled')  setSettlements(settRes.value.data);
       if (usersRes.status === 'fulfilled') {
-        // Filter out self from the participant picker
         setAllUsers(usersRes.value.data.filter((u: any) => u._id !== user?._id));
       }
       if (reqRes.status === 'fulfilled')   setRequests(reqRes.value.data);
     } catch (error) {
       console.error('Failed to fetch data', error);
+    } finally {
+      setDataLoading(false);
     }
   }, [user?._id]);
+
   useEffect(() => { 
-    fetchData(); 
-    const interval = setInterval(fetchData, 10000); // Auto-refresh every 10s
+    fetchData(true);
+    const interval = setInterval(() => fetchData(false), 10000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
@@ -203,11 +209,14 @@ const ClientDashboard = () => {
       </header>
 
       {/* Summary Cards */}
+      {dataLoading ? <SkeletonStats count={4} /> : (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div onClick={() => navigate('/client/paid')} className="cursor-pointer group">
           <Card className="hover:border-zinc-600 transition-colors">
             <p className="text-xs text-zinc-400 mb-1">I Paid</p>
-            <p className="text-2xl font-semibold text-zinc-100">{fmtCurrency(totalIPaid)}</p>
+            <p className="text-2xl font-semibold text-zinc-100">
+              <AnimatedNumber value={totalIPaid} prefix="₹" />
+            </p>
             <p className="text-[11px] text-zinc-500 mt-2 group-hover:text-zinc-300 transition-colors">{iPaidCount} transactions →</p>
           </Card>
         </div>
@@ -215,7 +224,9 @@ const ClientDashboard = () => {
         <div onClick={() => navigate('/client/charged')} className="cursor-pointer group">
           <Card className="hover:border-zinc-600 transition-colors">
             <p className="text-xs text-zinc-400 mb-1">I Was Charged</p>
-            <p className="text-2xl font-semibold text-zinc-100">{fmtCurrency(totalIWasCharged)}</p>
+            <p className="text-2xl font-semibold text-zinc-100">
+              <AnimatedNumber value={totalIWasCharged} prefix="₹" />
+            </p>
             <p className="text-[11px] text-zinc-500 mt-2 group-hover:text-zinc-300 transition-colors">{chargedCount} transactions →</p>
           </Card>
         </div>
@@ -223,7 +234,9 @@ const ClientDashboard = () => {
         <div onClick={() => navigate('/client/balances')} className="cursor-pointer group">
           <Card className="hover:border-zinc-600 transition-colors">
             <p className="text-xs text-zinc-400 mb-1">Others Owe Me</p>
-            <p className="text-2xl font-semibold text-emerald-400">{fmtCurrency(owedToYouTotal)}</p>
+            <p className="text-2xl font-semibold text-emerald-400">
+              <AnimatedNumber value={owedToYouTotal} prefix="₹" />
+            </p>
             <p className="text-[11px] text-zinc-500 mt-2 group-hover:text-zinc-300 transition-colors">View balances →</p>
           </Card>
         </div>
@@ -231,11 +244,14 @@ const ClientDashboard = () => {
         <div onClick={() => navigate('/client/balances')} className="cursor-pointer group">
           <Card className="hover:border-zinc-600 transition-colors">
             <p className="text-xs text-zinc-400 mb-1">I Owe Others</p>
-            <p className="text-2xl font-semibold text-red-400">{fmtCurrency(youOweTotal)}</p>
+            <p className="text-2xl font-semibold text-red-400">
+              <AnimatedNumber value={youOweTotal} prefix="₹" />
+            </p>
             <p className="text-[11px] text-zinc-500 mt-2 group-hover:text-zinc-300 transition-colors">View balances →</p>
           </Card>
         </div>
       </div>
+      )}
 
       {/* Main content grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 
 import { Button } from '../components/ui/Button';
 import { NotificationDropdown } from '../components/ui/NotificationDropdown';
+import AnimatedNumber from '../components/ui/AnimatedNumber';
 import api from '../utils/api';
 
 const IWasChargedPage = () => {
@@ -41,7 +42,9 @@ const IWasChargedPage = () => {
         <div className="text-right flex items-center gap-4">
           <div>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>My Share</p>
-            <p className="text-xl font-semibold" style={{ color: 'var(--color-danger)' }}>₹{totalCharged.toFixed(2)}</p>
+            <p className="text-xl font-semibold" style={{ color: 'var(--color-danger)' }}>
+              <AnimatedNumber value={totalCharged} prefix="₹" />
+            </p>
           </div>
           <NotificationDropdown />
         </div>
