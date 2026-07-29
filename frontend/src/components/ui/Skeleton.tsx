@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 // ─── Base shimmer animation style ─────────────────────────────
 const shimmerClass = "animate-pulse bg-zinc-800 rounded";

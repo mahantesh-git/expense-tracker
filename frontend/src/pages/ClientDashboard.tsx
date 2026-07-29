@@ -5,7 +5,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { NotificationDropdown } from '../components/ui/NotificationDropdown';
-import { SkeletonStats, SkeletonRow } from '../components/ui/Skeleton';
+import { SkeletonStats } from '../components/ui/Skeleton';
 import AnimatedNumber from '../components/ui/AnimatedNumber';
 import api from '../utils/api';
 
