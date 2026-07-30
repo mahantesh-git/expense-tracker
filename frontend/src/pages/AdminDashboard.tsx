@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
 import api from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 import { NotificationDropdown } from '../components/ui/NotificationDropdown';
@@ -21,10 +20,7 @@ const AdminDashboard = () => {
   const [requests, setRequests] = useState<any[]>([]);
   const [reqFilter, setReqFilter] = useState<'pending' | 'all'>('pending');
 
-  const [newUsername, setNewUsername] = useState('');
-  const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
-  const [newEmail, setNewEmail] = useState('');
 
   // Per-request action state
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -55,21 +51,6 @@ const AdminDashboard = () => {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // ─── Create client ───────────────────────────
-  const handleCreateClient = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await api.post('/auth/register', { username: newUsername, email: newEmail });
-      setNewUsername('');
-      setNewEmail('');
-      fetchData();
-    } catch (error) {
-      console.error('Failed to create client', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // ─── Approve request ─────────────────────────
   const handleApprove = async (id: string) => {
@@ -122,6 +103,8 @@ const AdminDashboard = () => {
           <p className="text-sm text-zinc-400 mt-1">System Overview</p>
         </div>
         <div className="flex items-center gap-3">
+          <Button variant="secondary" size="sm" onClick={() => navigate('/admin/clients')}>Client Accounts</Button>
+          <Button variant="secondary" size="sm" onClick={() => navigate('/admin/ledger')}>System Ledger</Button>
           <NotificationDropdown />
           <Button variant="ghost" size="sm" onClick={logout}>Sign Out</Button>
         </div>
@@ -298,93 +281,6 @@ const AdminDashboard = () => {
         )}
       </Card>
 
-      {/* ── Bottom grid: Provision + Clients + Ledger ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-        <div className="md:col-span-1 space-y-6">
-          <Card>
-            <h2 className="text-lg font-medium mb-4">Provision Account</h2>
-            <form onSubmit={handleCreateClient} className="space-y-4">
-              <Input
-                label='Email'
-                placeholder='client@email.com'
-                value={newEmail}
-                onChange={e => setNewEmail(e.target.value)}
-                required
-              />
-              <Input
-                label="Username (optional)"
-                placeholder="client_name"
-                value={newUsername}
-                onChange={e => setNewUsername(e.target.value)}
-              />
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Creating…' : 'Create Client'}
-              </Button>
-            </form>
-          </Card>
-        </div>
-
-        <div className="md:col-span-2 space-y-6">
-          <Card>
-            <h2 className="text-lg font-medium mb-4">Client Accounts</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {users.map(u => (
-                <div
-                  key={u._id}
-                  className="p-4 bg-zinc-950 border border-zinc-800 hover:border-zinc-600 transition-colors rounded-md flex justify-between items-center cursor-pointer group"
-                  onClick={() => navigate(`/admin/user/${u._id}`)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-zinc-800 rounded-md flex items-center justify-center text-sm font-medium text-zinc-300">
-                      {u.username.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-zinc-100">{u.username}</h3>
-                      <p className="text-xs text-zinc-500">Manage account</p>
-                    </div>
-                  </div>
-                  <span className="text-zinc-500 group-hover:text-zinc-300 transition-colors">→</span>
-                </div>
-              ))}
-              {users.length === 0 && (
-                <p className="text-zinc-500 text-sm">No clients provisioned.</p>
-              )}
-            </div>
-          </Card>
-
-          <Card>
-            <h2 className="text-lg font-medium mb-4">System Ledger</h2>
-            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-              {expenses.length === 0 ? (
-                <p className="text-zinc-500 text-sm">No transactions recorded.</p>
-              ) : (
-                expenses.map(expense => (
-                  <div key={expense._id} className="p-4 bg-zinc-950 rounded-md border border-zinc-800 flex justify-between items-center">
-                    <div>
-                      <p className="text-sm font-medium text-zinc-200">{expense.description}</p>
-                      <p className="text-xs text-zinc-500 mt-1">
-                        Paid by <span className="text-zinc-300">{expense.payer?.username}</span>
-                      </p>
-                      {expense.splits && expense.splits.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {expense.splits.map((s: any, idx: number) => (
-                            <span key={idx} className="text-[10px] bg-zinc-800 px-2 py-0.5 rounded text-zinc-400">
-                              {s.user?.username}: ₹{s.amountOwed.toFixed(2)}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <span className="text-sm font-medium text-zinc-100">
-                      ₹{expense.amount.toFixed(2)}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </Card>
-        </div>
-      </div>
     </div>
   );
 };

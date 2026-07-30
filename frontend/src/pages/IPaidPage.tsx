@@ -5,6 +5,8 @@ import { Button } from '../components/ui/Button';
 import { NotificationDropdown } from '../components/ui/NotificationDropdown';
 import AnimatedNumber from '../components/ui/AnimatedNumber';
 import api from '../utils/api';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const IPaidPage = () => {
   const { user } = useAuth();
@@ -21,6 +23,35 @@ const IPaidPage = () => {
   const toggle = (id: string) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
   const total = expenses.reduce((acc, e) => acc + e.amount, 0);
 
+  const exportToPDF = () => {
+    const doc = new jsPDF('landscape');
+    doc.text("I Paid - Expense Report", 14, 15);
+    
+    const tableData = expenses.map(exp => {
+      const otherSplits = exp.splits?.filter((s: any) => s.user?._id !== user?._id) || [];
+      const totalOwedToYou = otherSplits.reduce((a: number, s: any) => a + s.amountOwed, 0);
+      const splitDetails = otherSplits.map((s: any) => `${s.user?.username}: Rs. ${s.amountOwed.toFixed(2)}`).join(', ');
+
+      return [
+        new Date(exp.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+        exp.description,
+        `Rs. ${exp.amount.toFixed(2)}`,
+        `Rs. ${totalOwedToYou.toFixed(2)}`,
+        splitDetails || 'No splits'
+      ];
+    });
+
+    autoTable(doc, {
+      head: [['Date', 'Description', 'Total Amount', 'Owed To You', 'Split Details']],
+      body: tableData,
+      startY: 20,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [40, 40, 40] }
+    });
+
+    doc.save(`i-paid-report-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-5 w-full page-enter">
       <header className="flex items-center gap-4 pb-4 border-b border-zinc-800">
@@ -30,6 +61,7 @@ const IPaidPage = () => {
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{expenses.length} bills paid upfront</p>
         </div>
         <div className="text-right flex items-center gap-4">
+          <Button onClick={exportToPDF} variant="secondary" size="sm" className="hidden sm:inline-flex">Export PDF</Button>
           <div>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Total</p>
             <p className="text-xl font-semibold" style={{ color: 'var(--color-success)' }}>

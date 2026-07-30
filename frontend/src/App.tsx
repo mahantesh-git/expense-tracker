@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminLedger from './pages/AdminLedger';
+import AdminClients from './pages/AdminClients';
 import ClientDashboard from './pages/ClientDashboard';
 import AdminUserDetail from './pages/AdminUserDetail';
 import IPaidPage from './pages/IPaidPage';
@@ -41,6 +43,18 @@ const AppRoutes = () => {
       <Route path="/admin/user/:id" element={
         <PrivateRoute role="admin">
           <AdminUserDetail />
+        </PrivateRoute>
+      } />
+      
+      <Route path="/admin/ledger" element={
+        <PrivateRoute role="admin">
+          <AdminLedger />
+        </PrivateRoute>
+      } />
+
+      <Route path="/admin/clients" element={
+        <PrivateRoute role="admin">
+          <AdminClients />
         </PrivateRoute>
       } />
       

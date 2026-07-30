@@ -5,6 +5,8 @@ import { Button } from '../components/ui/Button';
 import { NotificationDropdown } from '../components/ui/NotificationDropdown';
 import AnimatedNumber from '../components/ui/AnimatedNumber';
 import api from '../utils/api';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const BalancesPage = () => {
   const { user } = useAuth();
@@ -56,6 +58,31 @@ const BalancesPage = () => {
   const youOwe = Object.entries(balanceMap).filter(([, b]) => b.net < -0.01);
   const settled = Object.entries(balanceMap).filter(([, b]) => Math.abs(b.net) <= 0.01);
 
+  const exportToPDF = () => {
+    const doc = new jsPDF('landscape');
+    doc.text("My Balances Report", 14, 15);
+    
+    const tableData = Object.values(balanceMap).map(b => {
+      const status = b.net > 0 ? 'Owes You' : b.net < 0 ? 'You Owe' : 'Settled';
+      return [
+        b.username,
+        `Rs. ${Math.abs(b.net).toFixed(2)}`,
+        status,
+        b.transactions.length.toString()
+      ];
+    });
+
+    autoTable(doc, {
+      head: [['User', 'Net Balance', 'Status', 'Transactions']],
+      body: tableData,
+      startY: 20,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [40, 40, 40] }
+    });
+
+    doc.save(`balances-report-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   const PersonRow = ({ uid, b, isPositive, type }: { uid: string; b: any; isPositive: boolean; type: 'owes_you' | 'you_owe' }) => {
     const isOpen = expanded[uid];
     const relevant = b.transactions.filter((t: any) => t.type === type);
@@ -103,9 +130,10 @@ const BalancesPage = () => {
         <Button variant="ghost" size="sm" onClick={() => navigate('/client')}>← Back</Button>
         <div className="flex-1">
           <h1 className="text-xl font-semibold">Balances</h1>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Who owes you vs who you owe</p>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>With {Object.keys(balanceMap).length} friends</p>
         </div>
         <div className="text-right flex items-center gap-4">
+          <Button onClick={exportToPDF} variant="secondary" size="sm" className="hidden sm:inline-flex">Export PDF</Button>
           <NotificationDropdown />
         </div>
       </header>
