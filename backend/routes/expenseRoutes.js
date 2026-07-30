@@ -32,14 +32,14 @@ router.get('/', protect, async (req, res) => {
   try {
     let expenses;
     if (req.user.role === 'admin') {
-      expenses = await Expense.find({}).populate('payer', 'username').populate('splits.user', 'username');
+      expenses = await Expense.find({}).sort({ date: -1 }).populate('payer', 'username').populate('splits.user', 'username');
     } else {
       expenses = await Expense.find({
         $or: [
           { payer: req.user._id },
           { 'splits.user': req.user._id }
         ]
-      }).populate('payer', 'username').populate('splits.user', 'username');
+      }).sort({ date: -1 }).populate('payer', 'username').populate('splits.user', 'username');
     }
     res.json(expenses);
   } catch (error) {

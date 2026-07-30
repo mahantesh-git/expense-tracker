@@ -74,13 +74,13 @@ router.get('/', protect, async (req, res) => {
   try {
     let requests;
     if (req.user.role === 'admin') {
-      requests = await ExpenseRequest.find({})
+      requests = await ExpenseRequest.find({}).sort({ createdAt: -1 })
         .populate('requestedBy', 'username')
         .populate('payer', 'username')
         .populate('splits.user', 'username')
         .sort({ createdAt: -1 });
     } else {
-      requests = await ExpenseRequest.find({ requestedBy: req.user._id })
+      requests = await ExpenseRequest.find({ requestedBy: req.user._id }).sort({ createdAt: -1 })
         .populate('requestedBy', 'username')
         .populate('payer', 'username')
         .populate('splits.user', 'username')

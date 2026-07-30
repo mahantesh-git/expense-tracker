@@ -29,14 +29,14 @@ router.get('/', protect, async (req, res) => {
   try {
     let settlements;
     if (req.user.role === 'admin') {
-      settlements = await Settlement.find({}).populate('payer', 'username').populate('receiver', 'username');
+      settlements = await Settlement.find({}).sort({ date: -1 }).populate('payer', 'username').populate('receiver', 'username');
     } else {
       settlements = await Settlement.find({
         $or: [
           { payer: req.user._id },
           { receiver: req.user._id }
         ]
-      }).populate('payer', 'username').populate('receiver', 'username');
+      }).sort({ date: -1 }).populate('payer', 'username').populate('receiver', 'username');
     }
     res.json(settlements);
   } catch (error) {
