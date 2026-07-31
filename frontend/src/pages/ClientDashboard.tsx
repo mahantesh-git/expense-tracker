@@ -61,7 +61,7 @@ const ClientDashboard = () => {
   }, [user?._id]);
 
   useEffect(() => { 
-    fetchData(true);
+    fetchData(expenses.length === 0); // show skeleton only on first visit; silent refresh on back-nav
     const interval = setInterval(() => fetchData(false), 10000);
     return () => clearInterval(interval);
   }, [fetchData]);
@@ -222,7 +222,7 @@ const ClientDashboard = () => {
     <div className="p-4 md:p-6 space-y-6 w-full page-enter">
       <header className="flex justify-between items-center pb-4 border-b border-zinc-800">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">My Dashboard</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
           <p className="text-sm text-zinc-400 mt-1">{user?.username}</p>
         </div>
         <div className="flex items-center gap-3">
@@ -233,7 +233,7 @@ const ClientDashboard = () => {
 
       {/* Summary Cards */}
       {dataLoading ? <SkeletonStats count={4} /> : (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-5">
         <div onClick={() => navigate('/client/paid')} className="cursor-pointer group">
           <Card className="hover:border-zinc-600 transition-colors">
             <p className="text-xs text-zinc-400 mb-1">I Paid</p>
@@ -334,7 +334,7 @@ const ClientDashboard = () => {
               <button
                 type="button"
                 onClick={addItem}
-                className="mt-2 w-full py-2 text-xs font-medium text-zinc-400 hover:text-zinc-100 border border-dashed border-zinc-700 hover:border-zinc-500 rounded-lg transition-colors"
+                className="mt-3 w-full py-2.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 border border-dashed border-zinc-700 hover:border-zinc-500 rounded-lg transition-colors"
               >
                 + Add Item
               </button>
@@ -342,17 +342,17 @@ const ClientDashboard = () => {
 
             {/* Split Type Toggle */}
             <div>
-              <label className="block text-xs text-zinc-400 mb-2">Split Type</label>
-              <div className="flex rounded-lg overflow-hidden border border-zinc-700 w-fit">
+              <label className="block text-sm text-zinc-400 mb-2 font-medium">Split Type</label>
+              <div className="flex p-1 rounded-xl bg-zinc-900 border border-zinc-800 w-fit gap-1">
                 {(['equal', 'custom'] as const).map(t => (
                   <button
                     key={t}
                     type="button"
                     onClick={() => setSplitType(t)}
-                    className={`px-4 py-2 text-sm font-medium transition-colors ${
+                    className={`px-6 py-2 text-sm font-medium rounded-lg transition-all ${
                       splitType === t
-                        ? 'bg-zinc-100 text-zinc-900'
-                        : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200'
+                        ? 'bg-zinc-700 text-white shadow-sm'
+                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
                     }`}
                   >
                     {t === 'equal' ? '⚖ Equal' : '✏ Custom'}
@@ -474,7 +474,7 @@ const ClientDashboard = () => {
               </div>
             )}
 
-            <Button type="submit" className="w-full" disabled={loading || selectedUsers.length === 0}>
+            <Button type="submit" size="lg" className="w-full mt-2" disabled={loading || selectedUsers.length === 0}>
               {loading ? 'Submitting…' : 'Submit for Approval'}
             </Button>
           </form>
@@ -540,7 +540,15 @@ const ClientDashboard = () => {
 
       {/* Recent Activity */}
       <div>
-        <h2 className="text-base font-medium mb-3">Recent Activity</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-medium">Recent Activity</h2>
+          <button 
+            onClick={() => navigate('/client/ledger')} 
+            className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+          >
+            View full ledger →
+          </button>
+        </div>
         <div className="space-y-2">
           {expenses.slice(0, 5).map(exp => {
             const isPayer = exp.payer._id === user?._id;

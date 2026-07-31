@@ -23,6 +23,7 @@ const AdminUserDetail = () => {
   const [customSplits, setCustomSplits] = useState<Record<string, number>>({});
   
   const [loading, setLoading] = useState(false);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [balances, setBalances] = useState<any[]>([]); 
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -138,15 +139,16 @@ const AdminUserDetail = () => {
     setCustomSplits({ ...customSplits, [uid]: Number(val) });
   };
 
-  const markSettlement = async (payerId: string, receiverId: string, amt: number) => {
-    const description = window.prompt("Enter a description/note for this settlement (e.g. 'March office supplies'):", "");
-    if (description === null) return; // User cancelled
+  const markSettlement = async (payerId: string, receiverId: string, amt: number, otherUserId: string, description: string) => {
 
+    setResolvingId(otherUserId);
     try {
       await api.post('/settlements', { payer: payerId, receiver: receiverId, amount: amt, description });
-      fetchData();
+      await fetchData();
     } catch (err) {
       console.error('Error marking settlement', err);
+    } finally {
+      setResolvingId(null);
     }
   };
 
@@ -426,15 +428,16 @@ const AdminUserDetail = () => {
                     <Button 
                       size="sm" 
                       variant={owesTarget ? 'secondary' : 'danger'}
+                      disabled={resolvingId === bal.user._id}
                       onClick={() => {
                         if (owesTarget) {
-                          markSettlement(bal.user._id, targetUser._id, netAmount);
+                          markSettlement(bal.user._id, targetUser._id, netAmount, bal.user._id, `Settled outstanding balance: ${bal.user.username} paid ${targetUser.username} ₹${absAmount}`);
                         } else {
-                          markSettlement(targetUser._id, bal.user._id, Math.abs(netAmount));
+                          markSettlement(targetUser._id, bal.user._id, Math.abs(netAmount), bal.user._id, `Settled outstanding balance: ${targetUser.username} paid ${bal.user.username} ₹${absAmount}`);
                         }
                       }}
                     >
-                      Resolve
+                      {resolvingId === bal.user._id ? 'Resolving...' : 'Resolve'}
                     </Button>
                   )}
                 </div>

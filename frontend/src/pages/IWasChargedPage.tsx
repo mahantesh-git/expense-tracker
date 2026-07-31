@@ -62,7 +62,7 @@ const IWasChargedPage = () => {
   return (
     <div className="p-4 md:p-6 space-y-5 w-full page-enter">
       <header className="flex items-center gap-4 pb-4 border-b border-zinc-800">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/client')}>← Back</Button>
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>← Back</Button>
         <div className="flex-1">
           <h1 className="text-xl font-semibold">I Was Charged</h1>
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{expenses.length} bills I am a part of</p>

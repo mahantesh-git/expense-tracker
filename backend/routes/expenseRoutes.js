@@ -9,18 +9,27 @@ const mongoose=require('mongoose')
 //          Clients must use POST /api/expense-requests instead — direct writes are blocked.
 // @access  Admin
 router.post('/', protect, admin, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const { description, amount, splits, payer } = req.body;
 
-    const expense = await Expense.create({
+    const expenseArray = await Expense.create([{
       description,
       amount,
       payer,
       splits
-    });
+    }], { session });
+
+    const expense = expenseArray[0];
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(201).json(expense);
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -51,9 +60,11 @@ router.get('/', protect, async (req, res) => {
 // @desc    Update expense
 // @access  Private (Admin only)
 router.put('/:id', protect, admin, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const { description, amount, splits, payer } = req.body;
-    const expense = await Expense.findById(req.params.id);
+    const expense = await Expense.findById(req.params.id).session(session);
 
     if (expense) {
       expense.description = description || expense.description;
@@ -61,12 +72,20 @@ router.put('/:id', protect, admin, async (req, res) => {
       expense.splits = splits || expense.splits;
       expense.payer = payer || expense.payer;
 
-      const updatedExpense = await expense.save();
+      const updatedExpense = await expense.save({ session });
+      
+      await session.commitTransaction();
+      session.endSession();
+      
       res.json(updatedExpense);
     } else {
+      await session.abortTransaction();
+      session.endSession();
       res.status(404).json({ message: 'Expense not found' });
     }
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     res.status(500).json({ message: 'Server error' });
   }
 });

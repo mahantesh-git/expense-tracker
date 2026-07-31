@@ -48,9 +48,9 @@ const AdminClients = () => {
     <div className="p-4 md:p-6 space-y-6 w-full page-enter">
       <header className="flex justify-between items-center pb-6 border-b border-zinc-800">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/admin')}>← Back</Button>
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>← Back</Button>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Client Accounts</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
             <p className="text-sm text-zinc-400 mt-1">{users.length} registered clients</p>
           </div>
         </div>

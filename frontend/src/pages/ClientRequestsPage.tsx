@@ -67,7 +67,7 @@ const ClientRequestsPage = () => {
         </div>
         <div className="flex items-center gap-3">
           <NotificationDropdown />
-          <Button variant="ghost" size="sm" onClick={() => navigate('/client')}>← Back</Button>
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>← Back</Button>
         </div>
       </header>
 

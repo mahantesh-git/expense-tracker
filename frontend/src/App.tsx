@@ -58,6 +58,12 @@ const AppRoutes = () => {
         </PrivateRoute>
       } />
       
+      <Route path="/client/ledger" element={
+        <PrivateRoute role="client">
+          <AdminLedger />
+        </PrivateRoute>
+      } />
+      
       <Route path="/client" element={
         <PrivateRoute role="client">
           <ClientDashboard />

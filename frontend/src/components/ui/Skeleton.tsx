@@ -54,3 +54,25 @@ export const PageLoader = () => (
     </div>
   </div>
 );
+
+// ─── Table skeleton ────────────────────────────────────────────
+export const SkeletonTable = ({ rows = 5, cols = 5 }: { rows?: number, cols?: number }) => (
+  <div className="w-full">
+    {/* Fake header row */}
+    <div className="flex items-center gap-4 p-4 border-b border-zinc-800 bg-zinc-900/50">
+      {Array.from({ length: cols }).map((_, i) => (
+        <SkeletonBlock key={i} className="h-4 flex-1" />
+      ))}
+    </div>
+    {/* Fake body rows */}
+    <div className="divide-y divide-zinc-800/50 bg-zinc-950">
+      {Array.from({ length: rows }).map((_, r) => (
+        <div key={r} className="flex items-center gap-4 p-4">
+          {Array.from({ length: cols }).map((_, c) => (
+            <SkeletonBlock key={c} className={`h-4 flex-1 ${c === 0 ? 'w-1/4' : ''}`} />
+          ))}
+        </div>
+      ))}
+    </div>
+  </div>
+);

@@ -5,20 +5,28 @@ const { protect, admin } = require('../middleware/auth');
 
 const { sendEmail } = require('../utils/sendEmail');
 const User = require('../models/User');
+const mongoose = require('mongoose');
 
 // @route   POST /api/settlements
 // @desc    Record a settlement (payment)
 // @access  Private (Admin only)
 router.post('/', protect, admin, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const { payer, receiver, amount, description } = req.body;
     
-    const settlement = await Settlement.create({
+    const settlementArray = await Settlement.create([{
       payer,
       receiver,
       amount,
       description: description || 'Net balance settlement'
-    });
+    }], { session });
+    
+    const settlement = settlementArray[0];
+
+    await session.commitTransaction();
+    session.endSession();
 
     // Send email to the payer
     try {
@@ -29,20 +37,25 @@ router.post('/', protect, admin, async (req, res) => {
         const descText = description ? ` for: "${description}"` : '';
         const message = `Hello ${payerUser.username},\n\nYour payment of ₹${amount} to ${receiverUser ? receiverUser.username : 'the receiver'}${descText} has been successfully recorded and resolved by the admin.\n\nThank you!`;
         
-        await sendEmail({
+        // Do not await sendEmail so the API responds instantly
+        sendEmail({
           email: payerUser.email,
           subject: 'Payment Resolved Confirmation',
           message
-        });
-        console.log(`Settlement email sent to ${payerUser.email}`);
+        })
+        .then(() => console.log(`Settlement email sent to ${payerUser.email}`))
+        .catch(err => console.error('Failed to send settlement email:', err));
       }
     } catch (emailError) {
-      console.error('Failed to send settlement email:', emailError);
-      // We don't want to fail the request if the email fails
+      console.error('Failed to prepare settlement email:', emailError);
     }
 
     res.status(201).json(settlement);
   } catch (error) {
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+      session.endSession();
+    }
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

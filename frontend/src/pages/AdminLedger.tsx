@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
-import { NotificationDropdown } from '../components/ui/NotificationDropdown';
-import { PageLoader } from '../components/ui/Skeleton';
+import { SkeletonTable } from '../components/ui/Skeleton';
 import api from '../utils/api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -23,6 +23,7 @@ type SortOrder = 'asc' | 'desc';
 
 const AdminLedger = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEntry, setSelectedEntry] = useState<LedgerEntry | null>(null);
@@ -32,6 +33,11 @@ const AdminLedger = () => {
   const [pageSize, setPageSize] = useState(10);
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+
+  // Filter & Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'ALL' | 'EXPENSE' | 'SETTLEMENT'>('ALL');
+  const [payerFilter, setPayerFilter] = useState<string>('ALL');
 
   useEffect(() => {
     const fetchLedger = async () => {
@@ -86,8 +92,22 @@ const AdminLedger = () => {
     }
   };
 
+  const filteredEntries = useMemo(() => {
+    return entries.filter(entry => {
+      const matchesSearch = searchQuery === '' || 
+        entry.description.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        entry.details.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesType = typeFilter === 'ALL' || entry.type === typeFilter;
+      
+      const matchesPayer = payerFilter === 'ALL' || entry.payerName === payerFilter;
+      
+      return matchesSearch && matchesType && matchesPayer;
+    });
+  }, [entries, searchQuery, typeFilter, payerFilter]);
+
   const sortedEntries = useMemo(() => {
-    return [...entries].sort((a, b) => {
+    return [...filteredEntries].sort((a, b) => {
       let valA = a[sortField];
       let valB = b[sortField];
 
@@ -95,7 +115,7 @@ const AdminLedger = () => {
       if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [entries, sortField, sortOrder]);
+  }, [filteredEntries, sortField, sortOrder]);
 
   const totalPages = Math.ceil(sortedEntries.length / pageSize);
   const paginatedEntries = sortedEntries.slice(
@@ -139,7 +159,7 @@ const AdminLedger = () => {
 
   const exportToPDF = () => {
     const doc = new jsPDF('landscape');
-    doc.text("System Ledger", 14, 15);
+    doc.text("Account Ledger", 14, 15);
     
     const tableData = sortedEntries.map(row => [
       row.date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
@@ -161,32 +181,75 @@ const AdminLedger = () => {
     doc.save(`system-ledger-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
-  if (loading) return <PageLoader />;
-
   return (
     <div className="w-full page-enter">
       <header className="flex justify-between items-center p-4 md:px-6 md:py-6 border-b border-zinc-800">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/admin')}>← Back</Button>
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>← Back</Button>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">System Ledger</h1>
             <p className="text-sm text-zinc-400 mt-1">Unified transaction history</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={exportToCSV} variant="secondary" size="sm" className="hidden sm:inline-flex">
-            CSV
-          </Button>
-          <Button onClick={exportToPDF} variant="secondary" size="sm">
-            Export PDF
-          </Button>
-          <NotificationDropdown />
+          {user?.role === 'admin' && (
+            <>
+              <Button onClick={exportToCSV} variant="secondary" size="sm" className="hidden sm:inline-flex">
+                CSV
+              </Button>
+              <Button onClick={exportToPDF} variant="secondary" size="sm">
+                Export PDF
+              </Button>
+            </>
+          )}
         </div>
       </header>
 
+      {/* Filter and Search Bar */}
+      <div className="px-4 py-4 md:px-6 flex flex-col sm:flex-row gap-4 bg-zinc-950 border-b border-zinc-800">
+        <input 
+          type="text" 
+          placeholder="Search descriptions or details..." 
+          className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-700"
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setCurrentPage(1);
+          }}
+        />
+        <select 
+          className="bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-700"
+          value={typeFilter}
+          onChange={(e) => {
+            setTypeFilter(e.target.value as any);
+            setCurrentPage(1);
+          }}
+        >
+          <option value="ALL">All Types</option>
+          <option value="EXPENSE">Expenses</option>
+          <option value="SETTLEMENT">Settlements</option>
+        </select>
+        <select 
+          className="bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-700 max-w-[200px]"
+          value={payerFilter}
+          onChange={(e) => {
+            setPayerFilter(e.target.value);
+            setCurrentPage(1);
+          }}
+        >
+          <option value="ALL">All Payers</option>
+          {Array.from(new Set(entries.map(e => e.payerName))).sort().map(payer => (
+            <option key={payer} value={payer}>{payer}</option>
+          ))}
+        </select>
+      </div>
+
       <div className="overflow-hidden bg-zinc-950">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+        {loading ? (
+          <SkeletonTable rows={8} cols={6} />
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
             <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400">
               <tr>
                 <th className="p-4 font-medium cursor-pointer hover:text-zinc-200 transition-colors" onClick={() => handleSort('date')}>
@@ -294,6 +357,8 @@ const AdminLedger = () => {
             </Button>
           </div>
         </div>
+        </>
+        )}
       </div>
 
       {/* Details Modal */}
