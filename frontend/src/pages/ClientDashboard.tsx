@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
 import { NotificationDropdown } from '../components/ui/NotificationDropdown';
 import { SkeletonStats } from '../components/ui/Skeleton';
 import AnimatedNumber from '../components/ui/AnimatedNumber';
@@ -27,8 +26,7 @@ const ClientDashboard = () => {
   const [requests, setRequests] = useState<any[]>([]);
 
   // form state
-  const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('');
+  const [items, setItems] = useState<{ name: string; amount: string }[]>([{ name: '', amount: '' }]);
   const [splitType, setSplitType] = useState<'equal' | 'custom'>('equal');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
@@ -86,11 +84,23 @@ const ClientDashboard = () => {
     }
   };
 
-  const equalSharePerPerson = selectedUsers.length > 0 && amount
+  // Derived from items
+  const amount = items.reduce((acc, it) => acc + (parseFloat(it.amount) || 0), 0).toFixed(2);
+  const description = items
+    .filter(it => it.name.trim())
+    .map(it => `${it.name.trim()}-${parseFloat(it.amount || '0')}`)
+    .join(' ');
+
+  const addItem = () => setItems(prev => [...prev, { name: '', amount: '' }]);
+  const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
+  const updateItem = (idx: number, field: 'name' | 'amount', value: string) =>
+    setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: value } : it));
+
+  const equalSharePerPerson = selectedUsers.length > 0 && Number(amount) > 0
     ? Number(amount) / (selectedUsers.length + 1)
     : null;
 
-  const customSplitTotal = selectedUsers.reduce((acc, uid) => acc + (parseFloat(customAmounts[uid] || '0')), 0);
+  const customSplitTotal = selectedUsers.reduce((acc, uid) => acc + (parseFloat(customAmounts?.[uid] || '0')), 0);
   const customRemainingForSelf = Number(amount) - customSplitTotal;
 
   // ─── Submit ─────────────────────────────────
@@ -107,6 +117,15 @@ const ClientDashboard = () => {
     const splits = buildSplits();
     const total = Number(amount);
 
+    if (total <= 0) {
+      setFormError('Add at least one item with an amount.');
+      return;
+    }
+    const hasNames = items.some(it => it.name.trim());
+    if (!hasNames) {
+      setFormError('Enter a name for at least one item.');
+      return;
+    }
 
     if (splitType === 'custom') {
       const othersTotal = splits.reduce((a, s) => a + s.amountOwed, 0);
@@ -131,11 +150,7 @@ const ClientDashboard = () => {
         splits,
       });
       // Reset form
-      setDescription('');
-      setAmount('');
-      setSplitType('equal');
-      setSelectedUsers([]);
-      setCustomAmounts({});
+      resetForm();
       setSubmitSuccess(true);
       setTimeout(() => setSubmitSuccess(false), 4000);
       fetchData();
@@ -144,6 +159,14 @@ const ClientDashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Reset form helper
+  const resetForm = () => {
+    setItems([{ name: '', amount: '' }]);
+    setSplitType('equal');
+    setSelectedUsers([]);
+    setCustomAmounts({});
   };
 
   // ─── Toggle participant ─────────────────────
@@ -263,23 +286,59 @@ const ClientDashboard = () => {
             Submit an expense for admin approval. Once approved, it will affect everyone's balances.
           </p>
           <form onSubmit={handleSubmitRequest} className="space-y-4">
-            <Input
-              label="Description"
-              placeholder="e.g. Team lunch, Office supplies"
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              required
-            />
-            <Input
-              label="Total Amount (₹)"
-              type="number"
-              step="0.01"
-              min="0.01"
-              placeholder="0.00"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              required
-            />
+
+            {/* ── Item List ── */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs text-zinc-400 font-medium">Items</label>
+                <span className="text-xs text-zinc-500">
+                  Total: <span className="text-zinc-200 font-semibold">₹{Number(amount).toFixed(2)}</span>
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {items.map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder={`Item ${idx + 1} name`}
+                      value={item.name}
+                      onChange={e => updateItem(idx, 'name', e.target.value)}
+                      className="flex-1 px-3 py-2 text-sm bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:outline-none focus:border-zinc-400 placeholder-zinc-600"
+                    />
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">₹</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={item.amount}
+                        onChange={e => updateItem(idx, 'amount', e.target.value)}
+                        className="w-28 pl-6 pr-2 py-2 text-sm bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:outline-none focus:border-zinc-400 placeholder-zinc-600"
+                      />
+                    </div>
+                    {items.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeItem(idx)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-400/10 transition-colors shrink-0"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={addItem}
+                className="mt-2 w-full py-2 text-xs font-medium text-zinc-400 hover:text-zinc-100 border border-dashed border-zinc-700 hover:border-zinc-500 rounded-lg transition-colors"
+              >
+                + Add Item
+              </button>
+            </div>
 
             {/* Split Type Toggle */}
             <div>

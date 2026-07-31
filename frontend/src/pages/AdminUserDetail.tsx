@@ -139,8 +139,11 @@ const AdminUserDetail = () => {
   };
 
   const markSettlement = async (payerId: string, receiverId: string, amt: number) => {
+    const description = window.prompt("Enter a description/note for this settlement (e.g. 'March office supplies'):", "");
+    if (description === null) return; // User cancelled
+
     try {
-      await api.post('/settlements', { payer: payerId, receiver: receiverId, amount: amt });
+      await api.post('/settlements', { payer: payerId, receiver: receiverId, amount: amt, description });
       fetchData();
     } catch (err) {
       console.error('Error marking settlement', err);

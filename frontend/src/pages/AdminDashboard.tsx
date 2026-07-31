@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import  { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -16,8 +16,8 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
 
   const [users, setUsers] = useState<any[]>([]);
-  const [expenses, setExpenses] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<any[]>([]);
   const [reqFilter, setReqFilter] = useState<'pending' | 'all'>('pending');
 
   const [dataLoading, setDataLoading] = useState(true);
@@ -83,7 +83,7 @@ const AdminDashboard = () => {
   };
 
   // ─── Derived ─────────────────────────────────
-  const totalSpentGlobal = expenses.reduce((acc, curr) => acc + curr.amount, 0);
+  const totalSpentGlobal = expenses.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
   const pendingCount = requests.filter(r => r.status === 'pending').length;
   const displayedRequests = reqFilter === 'pending'
     ? requests.filter(r => r.status === 'pending')
