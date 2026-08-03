@@ -25,8 +25,11 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    console.log(origin)
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (
+      !origin || 
+      allowedOrigins.includes(origin) || 
+      (origin && origin.endsWith('.onrender.com')) // Automatically allow Render deployments
+    ) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
