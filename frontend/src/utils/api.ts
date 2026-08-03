@@ -21,6 +21,10 @@ const api = axios.create({
   baseURL: backendUrl || `http://${window.location.hostname}:5000/api`,
 });
 
+// Simple in-memory cache for GET requests
+const cache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 30000; // 30 seconds
+
 api.interceptors.request.use(
   (config) => {
     const userStr = localStorage.getItem('user');
@@ -30,7 +34,46 @@ api.interceptors.request.use(
         config.headers.Authorization = `Bearer ${user.token}`;
       }
     }
+
+    // Check Cache for GET requests (except auth/me or sensitive ones if any)
+    if (config.method?.toLowerCase() === 'get' && config.headers['x-no-cache'] !== 'true') {
+      const cached = cache.get(config.url || '');
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        // Axios hack to return cached response without hitting network
+        config.adapter = () => {
+          return Promise.resolve({
+            data: cached.data,
+            status: 200,
+            statusText: 'OK',
+            headers: {},
+            config,
+            request: {}
+          });
+        };
+      }
+    }
     return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+api.interceptors.response.use(
+  (response) => {
+    // Cache successful GET responses
+    if (response.config.method?.toLowerCase() === 'get') {
+      cache.set(response.config.url || '', {
+        data: response.data,
+        timestamp: Date.now()
+      });
+    } else {
+      // Clear cache on POST, PUT, DELETE (mutations) to ensure fresh data
+      if (['post', 'put', 'delete'].includes(response.config.method?.toLowerCase() || '')) {
+        cache.clear();
+      }
+    }
+    return response;
   },
   (error) => {
     return Promise.reject(error);

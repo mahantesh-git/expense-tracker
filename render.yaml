@@ -15,6 +15,11 @@ services:
         sync: false # You must set this in the Render dashboard!
       - key: JWT_SECRET
         sync: false # You must set this in the Render dashboard!
+      - key: FRONTEND_URL
+        fromService:
+          type: web
+          name: expense-tracker-frontend
+          property: url
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT
@@ -40,7 +45,7 @@ services:
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
     envVars:
-      - key: VITE_BACKEND_URL
+      - key: VITE_API_URL
         fromService:
           type: web
           name: expense-tracker-backend

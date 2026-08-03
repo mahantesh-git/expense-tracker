@@ -126,56 +126,74 @@ export const NotificationDropdown = () => {
         </button>
 
         {isOpen && (
-          <div className="absolute right-0 mt-2 w-80 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden z-50">
-            <div className="flex items-center justify-between p-3 border-b border-zinc-800 bg-zinc-950">
-              <h3 className="font-medium text-sm text-zinc-200">Notifications</h3>
-              {unreadCount > 0 && (
-                <button 
-                  onClick={handleMarkAllAsRead}
-                  className="text-xs text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors"
-                >
-                  Mark all as read
-                </button>
-              )}
-            </div>
+          <>
+            {/* Mobile backdrop */}
+            <div className="fixed inset-0 z-40 sm:hidden" onClick={() => setIsOpen(false)} />
             
-            <div className="max-h-96 overflow-y-auto">
-              {notifications.length === 0 ? (
-                <div className="p-4 text-center text-zinc-500 text-sm">
-                  No notifications yet
-                </div>
-              ) : (
-                notifications.map((notification) => (
-                  <div 
-                    key={notification._id}
-                    onClick={() => handleNotificationClick(notification)}
-                    className={`p-3 border-b border-zinc-800/50 hover:bg-zinc-800/50 cursor-pointer transition-colors ${
-                      !notification.read ? 'bg-zinc-800/20' : 'opacity-70'
-                    }`}
+            <div className="absolute right-0 sm:-right-2 mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden z-50 transform origin-top-right transition-all">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm">
+                <h3 className="font-semibold text-sm text-zinc-100">Notifications</h3>
+                {unreadCount > 0 && (
+                  <button 
+                    onClick={handleMarkAllAsRead}
+                    className="text-[11px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors px-2 py-1 rounded-md hover:bg-[var(--accent)]/10"
                   >
-                    <div className="flex justify-between items-start mb-1">
-                      <span className={`text-sm font-medium ${
-                        !notification.read ? 'text-zinc-100' : 'text-zinc-300'
-                      }`}>
-                        {notification.title}
-                      </span>
-                      {!notification.read && (
-                        <span className="h-2 w-2 rounded-full bg-[var(--accent)] shrink-0 mt-1.5" />
-                      )}
+                    Mark all read
+                  </button>
+                )}
+              </div>
+              
+              <div className="max-h-[400px] overflow-y-auto overscroll-contain custom-scrollbar">
+                {notifications.length === 0 ? (
+                  <div className="p-8 text-center flex flex-col items-center justify-center gap-2">
+                    <div className="w-10 h-10 rounded-full bg-zinc-800/50 flex items-center justify-center mb-2">
+                      <Bell size={18} className="text-zinc-500" />
                     </div>
-                    <p className="text-xs text-zinc-400 line-clamp-2">
-                      {notification.message}
-                    </p>
-                    <p className="text-[10px] text-zinc-500 mt-2">
-                      {new Date(notification.createdAt).toLocaleString('en-IN', {
-                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                      })}
-                    </p>
+                    <p className="text-zinc-400 text-sm font-medium">All caught up</p>
+                    <p className="text-zinc-600 text-xs">No new notifications</p>
                   </div>
-                ))
-              )}
+                ) : (
+                  <div className="divide-y divide-zinc-800/50">
+                    {notifications.map((notification) => (
+                      <div 
+                        key={notification._id}
+                        onClick={() => handleNotificationClick(notification)}
+                        className={`p-4 hover:bg-zinc-800/40 cursor-pointer transition-colors relative group ${
+                          !notification.read ? 'bg-zinc-800/10' : ''
+                        }`}
+                      >
+                        {!notification.read && (
+                          <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--accent)]" />
+                        )}
+                        <div className="flex gap-3">
+                          <div className={`mt-0.5 shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${!notification.read ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'bg-zinc-800 text-zinc-500'}`}>
+                            <Bell size={14} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start gap-2 mb-1">
+                              <span className={`text-sm font-semibold truncate ${
+                                !notification.read ? 'text-zinc-100' : 'text-zinc-400'
+                              }`}>
+                                {notification.title}
+                              </span>
+                              <span className="text-[10px] text-zinc-500 shrink-0 mt-0.5 group-hover:text-zinc-400 transition-colors">
+                                {new Date(notification.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
+                              </span>
+                            </div>
+                            <p className={`text-xs line-clamp-2 leading-relaxed ${
+                              !notification.read ? 'text-zinc-300' : 'text-zinc-500'
+                            }`}>
+                              {notification.message}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
 

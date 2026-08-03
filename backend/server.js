@@ -3,15 +3,47 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
+const helmet = require('helmet');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
 const User = require('./models/User');
 
 dotenv.config();
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// Security & Optimization Middleware
+app.use(helmet()); // Sets security headers
+app.use(compression()); // Gzip compress responses
+
+// Configure CORS for production
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
+app.use(cors({
+  origin: function (origin, callback) {
+    console.log(origin)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
+
 app.use(express.json());
+
+// Rate Limiting (Prevent abuse on auth routes)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+  message: 'Too many auth requests from this IP, please try again after 15 minutes'
+});
+app.use('/api/auth', authLimiter);
 
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
@@ -19,9 +51,20 @@ app.use('/api/expenses', require('./routes/expenseRoutes'));
 app.use('/api/settlements', require('./routes/settlementRoutes'));
 app.use('/api/expense-requests', require('./routes/expenseRequestRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
-app.get('/api/health',async (req,res)=>{
-  res.status(200).json({message:'server is health'})
-})
+app.get('/api/health', async (req, res) => {
+  const dbState = mongoose.connection.readyState;
+  const status = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting'
+  };
+  return res.status(200).json({
+    message: 'server is health',
+    database: status[dbState] || 'unknown',
+    uptime: process.uptime()
+  });
+});
 
 // Database Connection
 const PORT = process.env.PORT || 5000;
@@ -45,10 +88,26 @@ mongoose.connect(MONGODB_URI)
       console.log('Default admin user created. Username: admin, Password: admin123');
     }
 
-    app.listen(PORT, '0.0.0.0',() => {
+    const server = app.listen(PORT, '0.0.0.0',() => {
       console.log(`Server running on port ${PORT}`);
     });
+
+    // Graceful Shutdown
+    const shutdown = () => {
+      console.log('SIGTERM/SIGINT received: closing HTTP server');
+      server.close(() => {
+        console.log('HTTP server closed');
+        mongoose.connection.close(false).then(() => {
+          console.log('MongoDB connection closed');
+          process.exit(0);
+        });
+      });
+    };
+    
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
   })
   .catch((err) => {
     console.error('MongoDB connection error:', err);
+    process.exit(1);
   });

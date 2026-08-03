@@ -12,6 +12,7 @@ import IWasChargedPage from './pages/IWasChargedPage';
 import BalancesPage from './pages/BalancesPage';
 import ClientRequestsPage from './pages/ClientRequestsPage';
 import { InstallPrompt } from './components/InstallPrompt';
+import { startKeepAlive } from './utils/keepAlive';
 
 const PrivateRoute = ({ children, role }: { children: React.ReactNode, role?: 'admin' | 'client' }) => {
   const { user } = useAuth();
@@ -100,6 +101,10 @@ const AppRoutes = () => {
 };
 
 const App = () => {
+  React.useEffect(() => {
+    startKeepAlive();
+  }, []);
+
   return (
     <AuthProvider>
       <div className="min-h-screen" style={{ backgroundColor: 'var(--bg-base)', color: 'var(--text-primary)' }}>

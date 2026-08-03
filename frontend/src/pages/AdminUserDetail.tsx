@@ -36,6 +36,7 @@ const AdminUserDetail = () => {
   const [resetSuccess, setResetSuccess] = useState('');
   const [resetError, setResetError] = useState('');
   const [reset_otp, setResetOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -152,19 +153,19 @@ const AdminUserDetail = () => {
     }
   };
 
-  const otp=async (e:React.FormEvent)=>{
+  const otp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setResetError('');
     try {
-      await api.post(`/auth/reset-password-otp/${targetUser.email}`, { });
-      setLoading(false);
-    } catch (error) {
-      console.error('Error sending OTP', error);
-      setLoading(false);
-    } finally{
+      await api.post(`/auth/reset-password-otp/${targetUser.email}`, {});
+      setOtpSent(true);
+    } catch (error: any) {
+      setResetError(error?.response?.data?.message || 'Failed to send OTP. Try again.');
+    } finally {
       setLoading(false);
     }
-  }
+  };
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -219,7 +220,7 @@ const AdminUserDetail = () => {
         </div>
         <div className="flex items-center gap-3">
           <NotificationDropdown />
-          <Button variant="secondary" size="sm" onClick={() => { setShowResetModal(true); setResetError(''); setResetSuccess(''); }}>
+          <Button variant="secondary" size="sm" onClick={() => { setShowResetModal(true); setResetError(''); setResetSuccess(''); setOtpSent(false); setResetOtp(''); setNewPassword(''); setConfirmPassword(''); }}>
             Reset Password
           </Button>
         </div>
@@ -228,90 +229,104 @@ const AdminUserDetail = () => {
       {/* Reset Password Modal */}
       {showResetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl p-6">
-            <div className="flex justify-between items-center mb-5">
+          <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
+
+            {/* Modal Header */}
+            <div className="flex justify-between items-center px-6 py-5 border-b border-zinc-800">
               <div>
-                <h2 className="text-lg font-semibold text-zinc-100">Reset Password</h2>
-                <p className="text-xs text-zinc-500 mt-0.5">Set a new password for <span className="text-zinc-300">{targetUser.username}</span></p>
+                <h2 className="text-base font-semibold text-zinc-100">Reset Password</h2>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Account: <span className="text-zinc-300 font-medium">{targetUser.username}</span>
+                  <span className="mx-1.5 text-zinc-700">·</span>
+                  <span className="text-zinc-400">{targetUser.email}</span>
+                </p>
               </div>
               <button
                 onClick={() => setShowResetModal(false)}
-                className="text-zinc-500 hover:text-zinc-200 transition-colors text-xl leading-none"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-all text-lg leading-none"
               >
                 ×
               </button>
             </div>
 
-            {resetError && (
-              <div className="mb-4 p-3 bg-red-950/50 border border-red-900 rounded-md text-red-200 text-sm">
-                {resetError}
+            {/* Step indicator */}
+            <div className="flex border-b border-zinc-800">
+              <div className={`flex-1 py-2.5 text-center text-xs font-medium transition-colors ${!otpSent ? 'text-white border-b-2 border-[var(--accent)]' : 'text-zinc-500'}`}>
+                1 · Send OTP
               </div>
-            )}
-            {resetSuccess && (
-              <div className="mb-4 p-3 bg-emerald-950/50 border border-emerald-800 rounded-md text-emerald-300 text-sm">
-                {resetSuccess}
+              <div className={`flex-1 py-2.5 text-center text-xs font-medium transition-colors ${otpSent ? 'text-white border-b-2 border-[var(--accent)]' : 'text-zinc-500'}`}>
+                2 · Set Password
               </div>
-            )}
+            </div>
 
-            <form onSubmit={otp}>
-              <Input
-                label="Email"
-                type="email"
-                value={targetUser.email}
-                required
-                disabled
-              />
-              <div className="flex gap-3 pt-1">
-                <Button type="submit" loading={loading} className="w-full" variant="danger" size="sm">
-                  Send OTP
-                </Button>
-                <Button type="button" onClick={otp} className="w-full" variant="danger" size="sm">
-                  Resend OTP
-                </Button>
-              </div>
-            </form>
+            <div className="px-6 py-5 space-y-4">
+              {/* Alerts */}
+              {resetError && (
+                <div className="flex items-start gap-2.5 p-3 bg-red-950/40 border border-red-900/60 rounded-xl text-red-300 text-sm">
+                  <span className="shrink-0 mt-0.5">⚠</span>
+                  <span>{resetError}</span>
+                </div>
+              )}
+              {resetSuccess && (
+                <div className="flex items-start gap-2.5 p-3 bg-emerald-950/40 border border-emerald-800/60 rounded-xl text-emerald-300 text-sm">
+                  <span className="shrink-0 mt-0.5">✓</span>
+                  <span>{resetSuccess}</span>
+                </div>
+              )}
 
-            <form onSubmit={handleResetPassword} className="space-y-4">
-              <Input
-                label='email'
-                type="email"
-                value={targetUser.email}
-                required
-                disabled
-              />
-              <Input
-                label="OTP"
-                type="number"
-                placeholder="••••••••"
-                value={reset_otp}
-                onChange={(e) => setResetOtp(e.target.value)}
-                required
-              />
-              <Input
-                label="New Password"
-                type="password"
-                placeholder="••••••••"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-              />
-              <Input
-                label="Confirm Password"
-                type="password"
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
-              <div className="flex gap-3 pt-1">
-                <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowResetModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" className="flex-1" disabled={resetLoading}>
-                  {resetLoading ? 'Resetting...' : 'Reset Password'}
-                </Button>
-              </div>
-            </form>
+              {/* Step 1: Send OTP */}
+              {!otpSent ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-zinc-400 leading-relaxed">
+                    An OTP will be sent to <span className="text-zinc-200 font-medium">{targetUser.email}</span>. Ask the client to check their inbox.
+                  </p>
+                  <form onSubmit={otp} className="flex gap-3">
+                    <Button type="submit" loading={loading} className="flex-1" variant="primary">
+                      Send OTP to Client
+                    </Button>
+                    <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowResetModal(false)}>
+                      Cancel
+                    </Button>
+                  </form>
+                </div>
+              ) : (
+                /* Step 2: Enter OTP + new password */
+                <form onSubmit={handleResetPassword} className="space-y-3">
+                  <Input
+                    label="OTP (from client's email)"
+                    type="text"
+                    placeholder="Enter 6-digit OTP"
+                    value={reset_otp}
+                    onChange={(e) => setResetOtp(e.target.value)}
+                    required
+                  />
+                  <Input
+                    label="New Password"
+                    type="password"
+                    placeholder="Min. 6 characters"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                  />
+                  <Input
+                    label="Confirm Password"
+                    type="password"
+                    placeholder="Repeat new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                  />
+                  <div className="flex gap-3 pt-2">
+                    <Button type="button" variant="ghost" className="flex-1" onClick={() => { setOtpSent(false); setResetError(''); }}>
+                      ← Back
+                    </Button>
+                    <Button type="submit" className="flex-1" loading={resetLoading}>
+                      {resetLoading ? 'Resetting…' : 'Reset Password'}
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       )}

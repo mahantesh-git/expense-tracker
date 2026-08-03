@@ -136,9 +136,12 @@ const AdminDashboard = () => {
 
   return (
     <div className="p-4 md:p-6 space-y-6 w-full page-enter">
-      <header className="flex justify-between items-center pb-6 border-b border-zinc-800">
-        
-        <div className="flex items-center gap-3">
+      <header className="flex flex-col md:flex-row md:justify-between md:items-center pb-6 border-b border-zinc-800 gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Admin Console</h1>
+          <p className="text-sm text-zinc-400 mt-1">System Overview</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
           <Button variant="secondary" size="sm" onClick={() => navigate('/admin/clients')}>Client Accounts</Button>
           <Button variant="secondary" size="sm" onClick={() => navigate('/admin/ledger')}>System Ledger</Button>
           <NotificationDropdown />
