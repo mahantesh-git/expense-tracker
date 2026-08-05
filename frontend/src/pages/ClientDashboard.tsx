@@ -3,10 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { NotificationDropdown } from '../components/ui/NotificationDropdown';
 import { SkeletonStats } from '../components/ui/Skeleton';
 import AnimatedNumber from '../components/ui/AnimatedNumber';
+import { getAvatarColor } from '../components/Shell';
 import api from '../utils/api';
+import {
+  CreditCard,
+  Receipt,
+  HandCoins,
+  ArrowDownLeft,
+  ChevronRight,
+  Plus,
+  Minus,
+  ArrowUpRight,
+  CheckCircle2,
+} from 'lucide-react';
 
 // ─── Types ────────────────────────────────────
 interface User { _id: string; username: string; }
@@ -15,17 +26,63 @@ interface SplitEntry { user: string; amountOwed: number; }
 // ─── Helpers ──────────────────────────────────
 const fmtCurrency = (n: number) => `₹${n.toFixed(2)}`;
 
+// ─── Stat Card ───────────────────────────────
+const StatCard = ({
+  label,
+  value,
+  prefix,
+  decimals,
+  valueColor,
+  icon: Icon,
+  accent,
+  subLabel,
+  onClick,
+}: {
+  label: string;
+  value: number;
+  prefix?: string;
+  decimals?: number;
+  valueColor?: string;
+  icon: React.ElementType;
+  accent?: boolean;
+  subLabel?: string;
+  onClick?: () => void;
+}) => (
+  <div
+    className={`${accent ? 'stat-card' : 'glass-panel card-hover'} p-4 ${onClick ? 'cursor-pointer' : ''}`}
+    onClick={onClick}
+  >
+    <div className="flex items-start justify-between mb-2">
+      <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{label}</p>
+      <div
+        className="w-7 h-7 rounded-lg flex items-center justify-center"
+        style={{ background: accent ? 'var(--accent-dim)' : 'var(--bg-hover)' }}
+      >
+        <Icon size={14} style={{ color: accent ? 'var(--accent)' : 'var(--text-secondary)' }} />
+      </div>
+    </div>
+    <p className="text-2xl font-bold tracking-tight" style={{ color: valueColor ?? 'var(--text-primary)', letterSpacing: '-0.03em' }}>
+      <AnimatedNumber value={value} prefix={prefix} decimals={decimals ?? 2} duration={600} />
+    </p>
+    {subLabel && (
+      <p className="text-[11px] mt-1.5 flex items-center gap-1 transition-colors group-hover:text-zinc-200"
+        style={{ color: 'var(--text-muted)' }}>
+        {subLabel}
+        {onClick && <ChevronRight size={11} />}
+      </p>
+    )}
+  </div>
+);
+
 const ClientDashboard = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
-  // existing data
   const [expenses, setExpenses] = useState<any[]>([]);
   const [settlements, setSettlements] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [requests, setRequests] = useState<any[]>([]);
 
-  // form state
+
   const [items, setItems] = useState<{ name: string; amount: string }[]>([{ name: '', amount: '' }]);
   const [splitType, setSplitType] = useState<'equal' | 'custom'>('equal');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
@@ -40,11 +97,10 @@ const ClientDashboard = () => {
   const fetchData = useCallback(async (showSkeleton = false) => {
     if (showSkeleton) setDataLoading(true);
     try {
-      const [expRes, settRes, usersRes, reqRes] = await Promise.allSettled([
+      const [expRes, settRes, usersRes] = await Promise.allSettled([
         api.get('/expenses'),
         api.get('/settlements'),
         api.get('/auth/peers'),
-        api.get('/expense-requests'),
       ]);
 
       if (expRes.status === 'fulfilled')   setExpenses(expRes.value.data);
@@ -52,7 +108,6 @@ const ClientDashboard = () => {
       if (usersRes.status === 'fulfilled') {
         setAllUsers(usersRes.value.data.filter((u: any) => u._id !== user?._id));
       }
-      if (reqRes.status === 'fulfilled')   setRequests(reqRes.value.data);
     } catch (error) {
       console.error('Failed to fetch data', error);
     } finally {
@@ -60,8 +115,8 @@ const ClientDashboard = () => {
     }
   }, [user?._id]);
 
-  useEffect(() => { 
-    fetchData(expenses.length === 0); // show skeleton only on first visit; silent refresh on back-nav
+  useEffect(() => {
+    fetchData(expenses.length === 0);
     const interval = setInterval(() => fetchData(false), 10000);
     return () => clearInterval(interval);
   }, [fetchData]);
@@ -70,9 +125,7 @@ const ClientDashboard = () => {
   const buildSplits = (): SplitEntry[] => {
     if (selectedUsers.length === 0) return [];
     const total = Number(amount) || 0;
-
     if (splitType === 'equal') {
-      // Include self + selected users
       const participants = [user!._id, ...selectedUsers];
       const perPerson = total / participants.length;
       return selectedUsers.map(uid => ({ user: uid, amountOwed: parseFloat(perPerson.toFixed(2)) }));
@@ -84,7 +137,6 @@ const ClientDashboard = () => {
     }
   };
 
-  // Derived from items
   const amount = items.reduce((acc, it) => acc + (parseFloat(it.amount) || 0), 0).toFixed(2);
   const description = items
     .filter(it => it.name.trim())
@@ -109,47 +161,25 @@ const ClientDashboard = () => {
     setFormError('');
     setSubmitSuccess(false);
 
-    if (selectedUsers.length === 0) {
-      setFormError('Select at least one person to split with.');
-      return;
-    }
-
+    if (selectedUsers.length === 0) { setFormError('Select at least one person to split with.'); return; }
     const splits = buildSplits();
     const total = Number(amount);
-
-    if (total <= 0) {
-      setFormError('Add at least one item with an amount.');
-      return;
-    }
+    if (total <= 0) { setFormError('Add at least one item with an amount.'); return; }
     const hasNames = items.some(it => it.name.trim());
-    if (!hasNames) {
-      setFormError('Enter a name for at least one item.');
-      return;
-    }
+    if (!hasNames) { setFormError('Enter a name for at least one item.'); return; }
 
     if (splitType === 'custom') {
       const othersTotal = splits.reduce((a, s) => a + s.amountOwed, 0);
-      // Only block if others' shares EXCEED the total; remainder is payer's own share
       if (othersTotal > total + 0.01) {
         setFormError(`Others' shares (₹${othersTotal.toFixed(2)}) exceed the total (₹${total.toFixed(2)}). Reduce the amounts.`);
         return;
       }
-      if (othersTotal < 0.01) {
-        setFormError('Enter at least ₹0.01 for each participant.');
-        return;
-      }
+      if (othersTotal < 0.01) { setFormError('Enter at least ₹0.01 for each participant.'); return; }
     }
-
 
     setLoading(true);
     try {
-      await api.post('/expense-requests', {
-        description,
-        amount: total,
-        splitType,
-        splits,
-      });
-      // Reset form
+      await api.post('/expense-requests', { description, amount: total, splitType, splits });
       resetForm();
       setSubmitSuccess(true);
       setTimeout(() => setSubmitSuccess(false), 4000);
@@ -161,7 +191,6 @@ const ClientDashboard = () => {
     }
   };
 
-  // Reset form helper
   const resetForm = () => {
     setItems([{ name: '', amount: '' }]);
     setSplitType('equal');
@@ -169,11 +198,8 @@ const ClientDashboard = () => {
     setCustomAmounts({});
   };
 
-  // ─── Toggle participant ─────────────────────
   const toggleUser = (uid: string) => {
-    setSelectedUsers(prev =>
-      prev.includes(uid) ? prev.filter(u => u !== uid) : [...prev, uid]
-    );
+    setSelectedUsers(prev => prev.includes(uid) ? prev.filter(u => u !== uid) : [...prev, uid]);
   };
 
   // ─── Summary calculations ──────────────────
@@ -213,67 +239,59 @@ const ClientDashboard = () => {
 
   const owedToYouTotal = Object.values(balanceMap).filter(v => v > 0.01).reduce((a, b) => a + b, 0);
   const youOweTotal = Object.values(balanceMap).filter(v => v < -0.01).reduce((a, b) => a + Math.abs(b), 0);
-
   const iPaidCount = expenses.filter(e => e.payer._id === user?._id).length;
   const chargedCount = expenses.filter(e => e.payer._id !== user?._id && e.splits?.some((s: any) => s.user?._id === user?._id)).length;
-  const pendingRequestsCount = requests.filter(r => r.status === 'pending').length;
 
   return (
     <div className="p-4 md:p-6 space-y-6 w-full page-enter">
-      <header className="flex justify-between items-center pb-4 border-b border-zinc-800">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-zinc-400 mt-1">{user?.username}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <NotificationDropdown />
-          <Button variant="ghost" size="sm" onClick={logout}>Sign Out</Button>
-        </div>
-      </header>
 
       {/* Summary Cards */}
       {dataLoading ? <SkeletonStats count={4} /> : (
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-5">
-        <div onClick={() => navigate('/client/paid')} className="cursor-pointer group">
-          <Card className="hover:border-zinc-600 transition-colors">
-            <p className="text-xs text-zinc-400 mb-1">I Paid</p>
-            <p className="text-2xl font-semibold text-zinc-100">
-              <AnimatedNumber value={totalIPaid} prefix="₹" />
-            </p>
-            <p className="text-[11px] text-zinc-500 mt-2 group-hover:text-zinc-300 transition-colors">{iPaidCount} transactions →</p>
-          </Card>
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
+          <div className="group" onClick={() => navigate('/client/paid')}>
+            <StatCard
+              label="I Paid"
+              value={totalIPaid}
+              prefix="₹"
+              icon={CreditCard}
+              accent
+              subLabel={`${iPaidCount} transactions →`}
+              onClick={() => navigate('/client/paid')}
+            />
+          </div>
+          <div className="group" onClick={() => navigate('/client/charged')}>
+            <StatCard
+              label="I Was Charged"
+              value={totalIWasCharged}
+              prefix="₹"
+              icon={Receipt}
+              subLabel={`${chargedCount} transactions →`}
+              onClick={() => navigate('/client/charged')}
+            />
+          </div>
+          <div className="group" onClick={() => navigate('/client/balances')}>
+            <StatCard
+              label="Others Owe Me"
+              value={owedToYouTotal}
+              prefix="₹"
+              icon={HandCoins}
+              valueColor="var(--color-success)"
+              subLabel="View balances →"
+              onClick={() => navigate('/client/balances')}
+            />
+          </div>
+          <div className="group" onClick={() => navigate('/client/balances')}>
+            <StatCard
+              label="I Owe Others"
+              value={youOweTotal}
+              prefix="₹"
+              icon={ArrowDownLeft}
+              valueColor="var(--color-danger)"
+              subLabel="View balances →"
+              onClick={() => navigate('/client/balances')}
+            />
+          </div>
         </div>
-
-        <div onClick={() => navigate('/client/charged')} className="cursor-pointer group">
-          <Card className="hover:border-zinc-600 transition-colors">
-            <p className="text-xs text-zinc-400 mb-1">I Was Charged</p>
-            <p className="text-2xl font-semibold text-zinc-100">
-              <AnimatedNumber value={totalIWasCharged} prefix="₹" />
-            </p>
-            <p className="text-[11px] text-zinc-500 mt-2 group-hover:text-zinc-300 transition-colors">{chargedCount} transactions →</p>
-          </Card>
-        </div>
-
-        <div onClick={() => navigate('/client/balances')} className="cursor-pointer group">
-          <Card className="hover:border-zinc-600 transition-colors">
-            <p className="text-xs text-zinc-400 mb-1">Others Owe Me</p>
-            <p className="text-2xl font-semibold text-emerald-400">
-              <AnimatedNumber value={owedToYouTotal} prefix="₹" />
-            </p>
-            <p className="text-[11px] text-zinc-500 mt-2 group-hover:text-zinc-300 transition-colors">View balances →</p>
-          </Card>
-        </div>
-
-        <div onClick={() => navigate('/client/balances')} className="cursor-pointer group">
-          <Card className="hover:border-zinc-600 transition-colors">
-            <p className="text-xs text-zinc-400 mb-1">I Owe Others</p>
-            <p className="text-2xl font-semibold text-red-400">
-              <AnimatedNumber value={youOweTotal} prefix="₹" />
-            </p>
-            <p className="text-[11px] text-zinc-500 mt-2 group-hover:text-zinc-300 transition-colors">View balances →</p>
-          </Card>
-        </div>
-      </div>
       )}
 
       {/* Main content grid */}
@@ -281,18 +299,22 @@ const ClientDashboard = () => {
 
         {/* ── Request Expense Form ─────────────── */}
         <Card>
-          <h2 className="text-base font-medium mb-4">Request an Expense</h2>
-          <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
-            Submit an expense for admin approval. Once approved, it will affect everyone's balances.
+          <div className="flex items-center gap-2 mb-1">
+            <Plus size={16} style={{ color: 'var(--accent)' }} />
+            <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Request an Expense</h2>
+          </div>
+          <p className="text-xs mb-5 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+            Submit for admin approval. Once approved it affects everyone's balances.
           </p>
-          <form onSubmit={handleSubmitRequest} className="space-y-4">
 
-            {/* ── Item List ── */}
+          <form onSubmit={handleSubmitRequest} className="space-y-5">
+
+            {/* Item List */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs text-zinc-400 font-medium">Items</label>
-                <span className="text-xs text-zinc-500">
-                  Total: <span className="text-zinc-200 font-semibold">₹{Number(amount).toFixed(2)}</span>
+                <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Items</label>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Total: <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>₹{Number(amount).toFixed(2)}</span>
                 </span>
               </div>
 
@@ -304,10 +326,11 @@ const ClientDashboard = () => {
                       placeholder={`Item ${idx + 1} name`}
                       value={item.name}
                       onChange={e => updateItem(idx, 'name', e.target.value)}
-                      className="flex-1 px-3 py-2 text-sm bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:outline-none focus:border-zinc-400 placeholder-zinc-600"
-                    />
+                      className="input-field flex-1 placeholder:text-[var(--text-secondary)]"
+                      style={{ color: 'var(--text-primary)' }}
+                    />  
                     <div className="relative">
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">₹</span>
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--text-muted)' }}>₹</span>
                       <input
                         type="number"
                         step="0.01"
@@ -315,16 +338,19 @@ const ClientDashboard = () => {
                         placeholder="0.00"
                         value={item.amount}
                         onChange={e => updateItem(idx, 'amount', e.target.value)}
-                        className="w-28 pl-6 pr-2 py-2 text-sm bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:outline-none focus:border-zinc-400 placeholder-zinc-600"
+                        className="input-field w-28 pl-6 placeholder:text-[var(--text-secondary)]"
                       />
                     </div>
                     {items.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeItem(idx)}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-400/10 transition-colors shrink-0"
+                        className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors shrink-0"
+                        style={{ color: 'var(--text-muted)' }}
+                        onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-danger)'; e.currentTarget.style.background = 'rgba(248,113,113,0.1)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
                       >
-                        ×
+                        <Minus size={14} />
                       </button>
                     )}
                   </div>
@@ -334,26 +360,25 @@ const ClientDashboard = () => {
               <button
                 type="button"
                 onClick={addItem}
-                className="mt-3 w-full py-2.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 border border-dashed border-zinc-700 hover:border-zinc-500 rounded-lg transition-colors"
+                className="mt-3 w-full py-2.5 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2"
+                style={{ color: 'var(--text-muted)', border: '1px dashed var(--border)' }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--text-muted)'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
               >
-                + Add Item
+                <Plus size={14} /> Add Item
               </button>
             </div>
 
             {/* Split Type Toggle */}
             <div>
-              <label className="block text-sm text-zinc-400 mb-2 font-medium">Split Type</label>
-              <div className="flex p-1 rounded-xl bg-zinc-900 border border-zinc-800 w-fit gap-1">
+              <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Split Type</label>
+              <div className="tab-pill w-fit">
                 {(['equal', 'custom'] as const).map(t => (
                   <button
                     key={t}
                     type="button"
                     onClick={() => setSplitType(t)}
-                    className={`px-6 py-2 text-sm font-medium rounded-lg transition-all ${
-                      splitType === t
-                        ? 'bg-zinc-700 text-white shadow-sm'
-                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-                    }`}
+                    className={`tab-pill-item ${splitType === t ? 'active' : ''}`}
                   >
                     {t === 'equal' ? '⚖ Equal' : '✏ Custom'}
                   </button>
@@ -364,59 +389,77 @@ const ClientDashboard = () => {
             {/* Participants */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs text-zinc-400">
-                  Split with <span className="text-zinc-500">(select others)</span>
+                <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                  Split with <span style={{ color: 'var(--text-muted)' }}>(select others)</span>
                 </label>
                 {allUsers.length > 0 && (
                   <button
                     type="button"
                     onClick={() => {
                       if (selectedUsers.length === allUsers.length) {
-                        // Deselect all
                         setSelectedUsers([]);
                         setCustomAmounts({});
                       } else {
-                        // Select all
                         setSelectedUsers(allUsers.map(u => u._id));
                       }
                     }}
-                    className="text-[11px] font-medium text-zinc-400 hover:text-zinc-100 transition-colors underline underline-offset-2"
+                    className="text-[11px] font-medium underline underline-offset-2 transition-colors"
+                    style={{ color: 'var(--text-muted)' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
                   >
                     {selectedUsers.length === allUsers.length ? 'Deselect All' : 'Select All'}
                   </button>
                 )}
               </div>
+
               {allUsers.length === 0 ? (
-                <p className="text-xs text-zinc-600 italic">No other users available.</p>
+                <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>No other users available.</p>
               ) : (
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                   {allUsers.map(u => {
                     const isSelected = selectedUsers.includes(u._id);
+                    const avatarColor = getAvatarColor(u.username);
                     return (
-                      <div key={u._id} className="flex items-center gap-3">
+                      <div key={u._id} className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => toggleUser(u._id)}
-                          className={`flex-1 flex items-center gap-2 p-2.5 rounded-lg border text-left transition-all ${
-                            isSelected
-                              ? 'border-zinc-400 bg-zinc-800'
-                              : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
-                          }`}
+                          className="flex-1 flex items-center gap-2.5 p-2.5 rounded-lg border text-left transition-all"
+                          style={{
+                            border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
+                            background: isSelected ? 'var(--accent-dim)' : 'var(--bg-raised)',
+                          }}
                         >
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                            isSelected ? 'bg-zinc-100 border-zinc-100' : 'border-zinc-600'
-                          }`}>
-                            {isSelected && <span className="text-zinc-900 text-[10px] leading-none">✓</span>}
+                          {/* Colored avatar */}
+                          <div
+                            className="w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+                            style={{ background: avatarColor }}
+                          >
+                            {u.username.charAt(0).toUpperCase()}
                           </div>
-                          <span className="text-sm text-zinc-200">{u.username}</span>
+                          <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{u.username}</span>
+
+                          {/* Checkbox */}
+                          <div
+                            className="ml-auto w-4 h-4 rounded border flex items-center justify-center shrink-0"
+                            style={{
+                              background: isSelected ? 'var(--text-primary)' : 'transparent',
+                              borderColor: isSelected ? 'var(--text-primary)' : 'var(--border)',
+                            }}
+                          >
+                            {isSelected && <span className="text-[10px] leading-none" style={{ color: 'var(--bg-base)' }}>✓</span>}
+                          </div>
 
                           {/* Equal share preview */}
                           {isSelected && splitType === 'equal' && equalSharePerPerson && (
-                            <span className="ml-auto text-[11px] text-zinc-400">{fmtCurrency(equalSharePerPerson)}</span>
+                            <span className="text-[11px] ml-1 shrink-0" style={{ color: 'var(--text-muted)' }}>
+                              {fmtCurrency(equalSharePerPerson)}
+                            </span>
                           )}
                         </button>
 
-                        {/* Custom amount input */}
+                        {/* Custom amount */}
                         {isSelected && splitType === 'custom' && (
                           <input
                             type="number"
@@ -425,7 +468,7 @@ const ClientDashboard = () => {
                             placeholder="₹ amount"
                             value={customAmounts[u._id] || ''}
                             onChange={e => setCustomAmounts(prev => ({ ...prev, [u._id]: e.target.value }))}
-                            className="w-28 px-2 py-2 text-sm bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:outline-none focus:border-zinc-400"
+                            className="input-field w-28 placeholder:text-[var(--text-secondary)]"
                           />
                         )}
                       </div>
@@ -435,143 +478,121 @@ const ClientDashboard = () => {
               )}
             </div>
 
-            {/* Custom split summary */}
+            {/* Split summaries */}
             {splitType === 'custom' && selectedUsers.length > 0 && amount && (
-              <div className={`text-xs p-2.5 rounded-lg border ${
-                customSplitTotal > Number(amount) + 0.01
-                  ? 'bg-red-900/20 border-red-900/40 text-red-400'
-                  : 'bg-zinc-800 border-zinc-700 text-zinc-400'
-              }`}>
+              <div
+                className="text-xs p-2.5 rounded-lg"
+                style={{
+                  background: customSplitTotal > Number(amount) + 0.01 ? 'rgba(248,113,113,0.08)' : 'var(--bg-raised)',
+                  border: `1px solid ${customSplitTotal > Number(amount) + 0.01 ? 'rgba(248,113,113,0.25)' : 'var(--border)'}`,
+                  color: customSplitTotal > Number(amount) + 0.01 ? 'var(--color-danger)' : 'var(--text-secondary)',
+                }}
+              >
                 {customSplitTotal > Number(amount) + 0.01 ? (
                   <span>⚠ Others' shares ({fmtCurrency(customSplitTotal)}) exceed the total — reduce amounts</span>
                 ) : (
                   <span>
-                    Others owe: <span className="text-zinc-200 font-medium">{fmtCurrency(customSplitTotal)}</span>
+                    Others owe: <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{fmtCurrency(customSplitTotal)}</span>
                     {' · '}
-                    Your share: <span className="text-zinc-200 font-medium">{fmtCurrency(Math.max(0, customRemainingForSelf))}</span>
+                    Your share: <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{fmtCurrency(Math.max(0, customRemainingForSelf))}</span>
                   </span>
                 )}
               </div>
             )}
 
-
-            {/* Equal split summary */}
             {splitType === 'equal' && selectedUsers.length > 0 && equalSharePerPerson && (
-              <div className="text-xs p-2.5 rounded-lg border bg-zinc-800 border-zinc-700 text-zinc-400">
+              <div
+                className="text-xs p-2.5 rounded-lg"
+                style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+              >
                 Each person pays {fmtCurrency(equalSharePerPerson)} · {selectedUsers.length + 1} people total
               </div>
             )}
 
             {formError && (
-              <div className="text-xs text-red-400 p-2.5 bg-red-900/20 rounded-lg border border-red-900/40">
-                {formError}
+              <div
+                className="text-xs p-2.5 rounded-lg flex items-start gap-2"
+                style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', color: 'var(--color-danger)' }}
+              >
+                ⚠ {formError}
               </div>
             )}
 
             {submitSuccess && (
-              <div className="text-xs text-emerald-400 p-2.5 bg-emerald-900/20 rounded-lg border border-emerald-900/40 flex items-center gap-2">
-                <span>✓</span> Request submitted! Awaiting admin approval.
+              <div
+                className="text-xs p-2.5 rounded-lg flex items-center gap-2 flash-success"
+                style={{ border: '1px solid rgba(52,211,153,0.25)', color: 'var(--color-success)' }}
+              >
+                <CheckCircle2 size={13} /> Request submitted! Awaiting admin approval.
               </div>
             )}
 
-            <Button type="submit" size="lg" className="w-full mt-2" disabled={loading || selectedUsers.length === 0}>
-              {loading ? 'Submitting…' : 'Submit for Approval'}
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full mt-2"
+              loading={loading}
+              disabled={loading || selectedUsers.length === 0}
+            >
+              Submit for Approval
             </Button>
           </form>
         </Card>
 
-        {/* ── My Requests ─────────────────────── */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-medium">My Requests</h2>
-            <button
-              onClick={() => navigate('/client/requests')}
-              className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
-            >
-              View all →
-            </button>
-          </div>
-
-          {pendingRequestsCount > 0 && (
-            <div
-              onClick={() => navigate('/client/requests')}
-              className="cursor-pointer flex items-center gap-3 p-3 rounded-lg bg-amber-400/10 border border-amber-400/30 hover:bg-amber-400/15 transition-colors"
-            >
-              <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
-              <p className="text-sm text-amber-300 font-medium">
-                {pendingRequestsCount} request{pendingRequestsCount > 1 ? 's' : ''} awaiting admin approval
-              </p>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            {requests.slice(0, 4).map(req => {
-              const statusColors: Record<string, string> = {
-                pending: 'text-amber-400',
-                approved: 'text-emerald-400',
-                rejected: 'text-red-400',
-              };
-              return (
-                <div
-                  key={req._id}
-                  onClick={() => navigate('/client/requests')}
-                  className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg border border-zinc-800 cursor-pointer hover:border-zinc-600 transition-colors"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-zinc-100">{req.description}</p>
-                    <p className="text-[11px] text-zinc-500 mt-0.5">
-                      {new Date(req.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                      {' · '}
-                      <span className={statusColors[req.status]}>
-                        {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
-                      </span>
-                    </p>
-                  </div>
-                  <span className="text-sm font-semibold text-zinc-100">{fmtCurrency(req.amount)}</span>
-                </div>
-              );
-            })}
-            {requests.length === 0 && (
-              <p className="text-zinc-500 text-sm">No requests submitted yet.</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-medium">Recent Activity</h2>
-          <button 
-            onClick={() => navigate('/client/ledger')} 
-            className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
-          >
-            View full ledger →
-          </button>
-        </div>
-        <div className="space-y-2">
-          {expenses.slice(0, 5).map(exp => {
-            const isPayer = exp.payer._id === user?._id;
-            const mySplit = exp.splits?.find((s: any) => s.user?._id === user?._id);
-            const myAmount = isPayer ? exp.amount : mySplit?.amountOwed;
-            return (
-              <div key={exp._id} className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg border border-zinc-800">
-                <div>
-                  <p className="text-sm font-medium text-zinc-100">{exp.description}</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">
-                    {isPayer ? 'You paid' : `Charged by ${exp.payer.username}`}
-                    {' · '}
-                    {new Date(exp.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                  </p>
-                </div>
-                <span className={`text-sm font-semibold ${isPayer ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {isPayer ? '+' : '-'}{fmtCurrency(myAmount || 0)}
-                </span>
+          {/* Recent Activity */}
+          <div className="mt-2">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <ArrowUpRight size={15} style={{ color: 'var(--text-muted)' }} />
+                <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Recent Activity</h2>
               </div>
-            );
-          })}
-          {expenses.length === 0 && <p className="text-zinc-500 text-sm">No activity yet.</p>}
+              <button
+                onClick={() => navigate('/client/ledger')}
+                className="text-xs flex items-center gap-1 transition-colors"
+                style={{ color: 'var(--text-muted)' }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+              >
+                Full ledger <ChevronRight size={12} />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {expenses.slice(0, 5).map(exp => {
+                const isPayer = exp.payer._id === user?._id;
+                const mySplit = exp.splits?.find((s: any) => s.user?._id === user?._id);
+                const myAmount = isPayer ? exp.amount : mySplit?.amountOwed;
+                return (
+                  <div
+                    key={exp._id}
+                    className="flex items-center justify-between p-3 rounded-lg"
+                    style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+                  >
+                    <div>
+                      <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{exp.description}</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                        {isPayer ? 'You paid' : `Charged by ${exp.payer.username}`}
+                        {' · '}
+                        {new Date(exp.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                      </p>
+                    </div>
+                    <span
+                      className="text-sm font-semibold"
+                      style={{ color: isPayer ? 'var(--color-success)' : 'var(--color-danger)' }}
+                    >
+                      {isPayer ? '+' : '-'}{fmtCurrency(myAmount || 0)}
+                    </span>
+                  </div>
+                );
+              })}
+              {expenses.length === 0 && (
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No activity yet.</p>
+              )}
+            </div>
+          </div>
         </div>
+
       </div>
     </div>
   );

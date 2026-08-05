@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { NotificationDropdown } from '../components/ui/NotificationDropdown';
 import { SkeletonStats, SkeletonRow } from '../components/ui/Skeleton';
 import api from '../utils/api';
 
 const AdminUserDetail = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
   const [users, setUsers] = useState<any[]>([]);
   const [targetUser, setTargetUser] = useState<any>(null);
   
@@ -210,21 +208,15 @@ const AdminUserDetail = () => {
 
   return (
     <div className="p-4 md:p-6 space-y-6 w-full page-enter">
-      <header className="flex flex-col md:flex-row md:justify-between md:items-center pb-6 border-b border-zinc-800 gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
         <div>
-          <Button variant="ghost" onClick={() => navigate('/admin')} className="mb-2 -ml-3 text-xs">
-            ← Back to Console
-          </Button>
-          <h1 className="text-2xl font-semibold tracking-tight">{targetUser.username}</h1>
-          <p className="text-sm text-zinc-400 mt-1">Client Ledger & Management</p>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>{targetUser.username}</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Client Ledger &amp; Management</p>
         </div>
-        <div className="flex items-center gap-3">
-          <NotificationDropdown />
-          <Button variant="secondary" size="sm" onClick={() => { setShowResetModal(true); setResetError(''); setResetSuccess(''); setOtpSent(false); setResetOtp(''); setNewPassword(''); setConfirmPassword(''); }}>
-            Reset Password
-          </Button>
-        </div>
-      </header>
+        <Button variant="secondary" size="sm" onClick={() => { setShowResetModal(true); setResetError(''); setResetSuccess(''); setOtpSent(false); setResetOtp(''); setNewPassword(''); setConfirmPassword(''); }}>
+          Reset Password
+        </Button>
+      </div>
 
       {/* Reset Password Modal */}
       {showResetModal && (

@@ -12,7 +12,7 @@ router.get('/', protect, async (req, res) => {
   try {
     const notifications = await Notification.find({ recipient: req.user._id })
       .sort({ createdAt: -1 })
-      .limit(50); // limit to recent 50
+      .limit(10); // limit to recent 10
     res.json(notifications);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

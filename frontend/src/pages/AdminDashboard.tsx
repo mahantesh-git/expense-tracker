@@ -1,19 +1,74 @@
-import  { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import api from '../utils/api';
-import { useNavigate } from 'react-router-dom';
-import { NotificationDropdown } from '../components/ui/NotificationDropdown';
 import { SkeletonStats, SkeletonRow } from '../components/ui/Skeleton';
 import AnimatedNumber from '../components/ui/AnimatedNumber';
+import { getAvatarColor } from '../components/Shell';
+import {
+  TrendingUp,
+  Users,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  CircleDot,
+} from 'lucide-react';
 
 // ─── Types ────────────────────────────────────
 type RequestStatus = 'pending' | 'approved' | 'rejected';
 
+// ─── Stat Card ───────────────────────────────
+const StatCard = ({
+  label,
+  value,
+  prefix,
+  decimals,
+  icon: Icon,
+  valueColor,
+  accent,
+  suffix,
+}: {
+  label: string;
+  value: number;
+  prefix?: string;
+  decimals?: number;
+  icon: React.ElementType;
+  valueColor?: string;
+  accent?: boolean;
+  suffix?: React.ReactNode;
+}) => (
+  <div className={accent ? 'stat-card p-5' : 'glass-panel p-5 card-hover'}>
+    <div className="flex items-start justify-between mb-3">
+      <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{label}</p>
+      <div
+        className="w-7 h-7 rounded-lg flex items-center justify-center"
+        style={{ background: accent ? 'var(--accent-dim)' : 'var(--bg-hover)' }}
+      >
+        <Icon size={14} style={{ color: accent ? 'var(--accent)' : 'var(--text-secondary)' }} />
+      </div>
+    </div>
+    <div className="flex items-end gap-2">
+      <p className="text-3xl font-bold tracking-tight" style={{ color: valueColor ?? 'var(--text-primary)', letterSpacing: '-0.03em' }}>
+        <AnimatedNumber value={value} prefix={prefix} decimals={decimals ?? 2} duration={600} />
+      </p>
+      {suffix}
+    </div>
+  </div>
+);
+
+// ─── Status badge ─────────────────────────────
+const StatusBadge = ({ status }: { status: RequestStatus }) => {
+  const map: Record<RequestStatus, { cls: string; icon: string; label: string }> = {
+    pending:  { cls: 'badge badge-pending',  icon: '⏳', label: 'Pending'  },
+    approved: { cls: 'badge badge-approved', icon: '✓',  label: 'Approved' },
+    rejected: { cls: 'badge badge-rejected', icon: '✕',  label: 'Rejected' },
+  };
+  const { cls, icon, label } = map[status];
+  return <span className={cls}>{icon} {label}</span>;
+};
+
 const AdminDashboard = () => {
   const { logout } = useAuth();
-  const navigate = useNavigate();
 
   const [users, setUsers] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
@@ -51,14 +106,13 @@ const AdminDashboard = () => {
     }
   }, []);
 
-  useEffect(() => { 
-    fetchData(requests.length === 0); // show skeleton only on first visit; silent refresh on back-nav
-    const interval = setInterval(() => fetchData(false), 10000); // silent refresh
+  useEffect(() => {
+    fetchData(requests.length === 0);
+    const interval = setInterval(() => fetchData(false), 10000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
-
-  // ─── Approve request ─────────────────────────
+  // ─── Approve ─────────────────────────────────
   const handleApprove = async (id: string) => {
     setActionLoading(id);
     try {
@@ -71,7 +125,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // ─── Reject request ──────────────────────────
+  // ─── Reject ──────────────────────────────────
   const handleReject = async (id: string) => {
     setActionLoading(id);
     try {
@@ -92,12 +146,10 @@ const AdminDashboard = () => {
   const totalSpentGlobal = expenses.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
   const pendingCount = requests.filter(r => r.status === 'pending').length;
 
-  // Unique payers for dropdown
   const uniquePayers = Array.from(
     new Map(requests.map(r => [r.requestedBy?._id, r.requestedBy?.username])).entries()
   ).filter(([id]) => id);
 
-  // Apply all filters
   const filteredRequests = requests.filter(r => {
     if (reqFilter !== 'all' && r.status !== reqFilter) return false;
     if (payerFilter !== 'all' && r.requestedBy?._id !== payerFilter) return false;
@@ -114,79 +166,66 @@ const AdminDashboard = () => {
   const totalPages = Math.max(1, Math.ceil(filteredRequests.length / PAGE_SIZE));
   const paginatedRequests = filteredRequests.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  // Reset to page 1 when filters change — handled inline via key or effect
   const handleFilterChange = (newFilter: typeof reqFilter) => {
     setReqFilter(newFilter);
     setCurrentPage(1);
   };
-  const handlePayerChange = (val: string) => {
-    setPayerFilter(val);
-    setCurrentPage(1);
-  };
-  const handleSearch = (val: string) => {
-    setSearchQuery(val);
-    setCurrentPage(1);
-  };
-
-  const statusColors: Record<RequestStatus, string> = {
-    pending:  'text-amber-400 bg-amber-400/10 border-amber-400/30',
-    approved: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/30',
-    rejected: 'text-red-400 bg-red-400/10 border-red-400/30',
-  };
 
   return (
     <div className="p-4 md:p-6 space-y-6 w-full page-enter">
-      <header className="flex flex-col md:flex-row md:justify-between md:items-center pb-6 border-b border-zinc-800 gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Admin Console</h1>
-          <p className="text-sm text-zinc-400 mt-1">System Overview</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button variant="secondary" size="sm" onClick={() => navigate('/admin/clients')}>Client Accounts</Button>
-          <Button variant="secondary" size="sm" onClick={() => navigate('/admin/ledger')}>System Ledger</Button>
-          <NotificationDropdown />
-          <Button variant="ghost" size="sm" onClick={logout}>Sign Out</Button>
-        </div>
-      </header>
 
       {/* ── Stats Row ─────────────────────────── */}
       {dataLoading ? <SkeletonStats count={3} /> : (
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <Card>
-          <p className="text-sm font-medium text-zinc-400 mb-1">Global Volume</p>
-          <p className="text-3xl font-semibold text-zinc-100">
-            <AnimatedNumber value={totalSpentGlobal} prefix="₹" />
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm font-medium text-zinc-400 mb-1">Active Clients</p>
-          <p className="text-3xl font-semibold text-zinc-100">{users.length}</p>
-        </Card>
-        <Card className="col-span-2 sm:col-span-1">
-          <p className="text-sm font-medium text-zinc-400 mb-1">Pending Requests</p>
-          <div className="flex items-center gap-3">
-            <p className="text-3xl font-semibold text-amber-400">
-              <AnimatedNumber value={pendingCount} decimals={0} duration={600} />
-            </p>
-            {pendingCount > 0 && (
-              <span className="w-2.5 h-2.5 bg-amber-400 rounded-full animate-pulse" />
-            )}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <StatCard
+            label="Global Volume"
+            value={totalSpentGlobal}
+            prefix="₹"
+            icon={TrendingUp}
+            accent
+          />
+          <StatCard
+            label="Active Clients"
+            value={users.length}
+            decimals={0}
+            icon={Users}
+          />
+          <div className="col-span-2 sm:col-span-1">
+            <StatCard
+              label="Pending Requests"
+              value={pendingCount}
+              decimals={0}
+              icon={Clock}
+              valueColor={pendingCount > 0 ? 'var(--color-warning)' : 'var(--text-primary)'}
+              suffix={pendingCount > 0 ? (
+                <span className="w-2.5 h-2.5 bg-amber-400 rounded-full animate-pulse mb-1.5" />
+              ) : undefined}
+            />
           </div>
-        </Card>
-      </div>
+        </div>
       )}
 
-      {/* ── Pending Requests Panel ─────────────── */}
-      <Card>
+      {/* ── Requests Panel ─────────────────────── */}
+      <div className="glass-panel p-5">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-medium">Expense Requests</h2>
+            <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Expense Requests</h2>
             {pendingCount > 0 && (
-              <span className="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-400 text-xs font-semibold border border-amber-400/30">
+              <span
+                className="badge badge-pending"
+                style={{ animation: 'badgePop 0.3s cubic-bezier(0.22,1,0.36,1) both' }}
+              >
                 {pendingCount} pending
               </span>
             )}
           </div>
+          <button
+            onClick={logout}
+            className="text-xs sm:hidden transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Sign Out
+          </button>
         </div>
 
         {/* ── Search + Filters ── */}
@@ -195,13 +234,13 @@ const AdminDashboard = () => {
             type="text"
             placeholder="Search by description or requester…"
             value={searchQuery}
-            onChange={e => handleSearch(e.target.value)}
-            className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600"
+            onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+            className="input-field flex-1"
           />
           <select
             value={payerFilter}
-            onChange={e => handlePayerChange(e.target.value)}
-            className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-zinc-600 cursor-pointer"
+            onChange={e => { setPayerFilter(e.target.value); setCurrentPage(1); }}
+            className="select-field"
           >
             <option value="all">All Requesters</option>
             {uniquePayers.map(([id, name]) => (
@@ -211,149 +250,176 @@ const AdminDashboard = () => {
         </div>
 
         {/* ── Status Tabs ── */}
-        <div className="flex p-1 rounded-xl bg-zinc-900 border border-zinc-800 w-fit gap-1 mb-4">
+        <div className="tab-pill w-fit mb-4">
           {(['pending', 'approved', 'rejected', 'all'] as const).map(f => (
             <button
               key={f}
               onClick={() => handleFilterChange(f)}
-              className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                reqFilter === f
-                  ? 'bg-zinc-700 text-white shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-              }`}
+              className={`tab-pill-item ${reqFilter === f ? 'active' : ''}`}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
           ))}
         </div>
 
-        {/* ── Results count ── */}
+        {/* Results count */}
         {!dataLoading && (
-          <p className="text-xs text-zinc-500 mb-3">
+          <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
             Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, filteredRequests.length || 0)}–{Math.min(currentPage * PAGE_SIZE, filteredRequests.length)} of {filteredRequests.length} requests
           </p>
         )}
 
-
         {dataLoading ? (
           <div className="space-y-3">
-            {[1,2,3].map(i => <SkeletonRow key={i} />)}
+            {[1, 2, 3].map(i => <SkeletonRow key={i} />)}
           </div>
         ) : paginatedRequests.length === 0 ? (
-          <div className="py-10 text-center">
-            <p className="text-3xl mb-3">✅</p>
-            <p className="text-zinc-400 text-sm">
-              {reqFilter === 'pending' ? 'No pending requests — all caught up!' : 'No requests match your filters.'}
+          <div className="py-14 text-center space-y-3">
+            <div
+              className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center"
+              style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)' }}
+            >
+              <CheckCircle2 size={24} style={{ color: 'var(--text-muted)' }} />
+            </div>
+            <p className="font-medium text-sm" style={{ color: 'var(--text-secondary)' }}>
+              {reqFilter === 'pending' ? 'All caught up!' : 'No requests match your filters.'}
+            </p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              {reqFilter === 'pending' ? 'No pending requests at this time.' : 'Try adjusting your search or filter.'}
             </p>
           </div>
         ) : (
           <>
-            {/* Scrollable list */}
-            <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
-              {paginatedRequests.map(req => (
-                <div key={req._id} className="p-4 rounded-xl border border-zinc-800 bg-zinc-950 space-y-3">
-                  {/* Header row */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-semibold text-zinc-100">{req.description}</p>
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${statusColors[req.status as RequestStatus]}`}>
-                          {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
-                        </span>
+            <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+              {paginatedRequests.map(req => {
+                const avatarColor = getAvatarColor(req.requestedBy?.username ?? 'U');
+                return (
+                  <div
+                    key={req._id}
+                    className="p-4 rounded-xl card-hover"
+                    style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)' }}
+                  >
+                    {/* Header row */}
+                    <div className="flex items-start gap-3">
+                      {/* Avatar */}
+                      <div className="avatar-ring shrink-0" style={{ background: avatarColor, color: '#fff' }}>
+                        {(req.requestedBy?.username ?? 'U').charAt(0).toUpperCase()}
                       </div>
-                      <p className="text-xs text-zinc-500 mt-0.5">
-                        by <span className="text-zinc-300">{req.requestedBy?.username}</span>
-                        {' · '}
-                        {new Date(req.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        {' · '}
-                        {req.splitType === 'equal' ? 'Equal split' : 'Custom split'}
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                            {req.description}
+                          </p>
+                          <StatusBadge status={req.status as RequestStatus} />
+                        </div>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                          by <span style={{ color: 'var(--text-secondary)' }}>{req.requestedBy?.username}</span>
+                          {' · '}
+                          {new Date(req.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {' · '}
+                          {req.splitType === 'equal' ? 'Equal split' : 'Custom split'}
+                        </p>
+                      </div>
+
+                      <p className="text-lg font-bold shrink-0" style={{ color: 'var(--text-primary)' }}>
+                        ₹{req.amount.toFixed(2)}
                       </p>
                     </div>
-                    <p className="text-lg font-bold text-zinc-100 shrink-0">₹{req.amount.toFixed(2)}</p>
+
+                    {/* Split breakdown */}
+                    {req.splits && req.splits.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        {req.splits.map((s: any, idx: number) => (
+                          <span
+                            key={idx}
+                            className="text-[11px] px-2 py-1 rounded-md"
+                            style={{ background: 'var(--accent-dim)', color: 'var(--text-secondary)', border: '1px solid rgba(224,61,82,0.2)' }}
+                          >
+                            {s.user?.username}: <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>₹{s.amountOwed.toFixed(2)}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Admin note */}
+                    {req.adminNote && req.status !== 'pending' && (
+                      <div
+                        className="mt-3 p-2.5 rounded-lg text-xs"
+                        style={{
+                          background: req.status === 'rejected' ? 'rgba(248,113,113,0.08)' : 'rgba(52,211,153,0.08)',
+                          border: `1px solid ${req.status === 'rejected' ? 'rgba(248,113,113,0.2)' : 'rgba(52,211,153,0.2)'}`,
+                          color: req.status === 'rejected' ? 'var(--color-danger)' : 'var(--color-success)',
+                        }}
+                      >
+                        <span className="font-medium">Note: </span>{req.adminNote}
+                      </div>
+                    )}
+
+                    {/* Action buttons */}
+                    {req.status === 'pending' && (
+                      <div className="mt-3 space-y-2">
+                        {rejectOpen === req._id ? (
+                          <div className="flex gap-2">
+                            <input
+                              autoFocus
+                              type="text"
+                              placeholder="Rejection reason (optional)"
+                              value={rejectNotes[req._id] || ''}
+                              onChange={e => setRejectNotes(prev => ({ ...prev, [req._id]: e.target.value }))}
+                              className="input-field flex-1"
+                            />
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              onClick={() => handleReject(req._id)}
+                              disabled={actionLoading === req._id}
+                              className="shrink-0"
+                            >
+                              {actionLoading === req._id ? '…' : 'Reject'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setRejectOpen(null)}
+                              className="shrink-0"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              onClick={() => setRejectOpen(req._id)}
+                            >
+                              <XCircle size={13} /> Reject
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="success"
+                              onClick={() => handleApprove(req._id)}
+                              disabled={actionLoading === req._id}
+                            >
+                              {actionLoading === req._id
+                                ? <><CircleDot size={13} className="animate-spin" /> Approving…</>
+                                : <><CheckCircle2 size={13} /> Approve</>
+                              }
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-
-                  {/* Split breakdown */}
-                  {req.splits && req.splits.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {req.splits.map((s: any, idx: number) => (
-                        <span key={idx} className="text-[11px] bg-zinc-800 px-2 py-1 rounded-md text-zinc-400">
-                          {s.user?.username}: <span className="text-zinc-200 font-medium">₹{s.amountOwed.toFixed(2)}</span>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Admin note (if already actioned) */}
-                  {req.adminNote && req.status !== 'pending' && (
-                    <div className={`p-2.5 rounded-lg border text-xs ${
-                      req.status === 'rejected'
-                        ? 'bg-red-900/20 border-red-900/40 text-red-300'
-                        : 'bg-emerald-900/20 border-emerald-900/40 text-emerald-300'
-                    }`}>
-                      <span className="font-medium">Note: </span>{req.adminNote}
-                    </div>
-                  )}
-
-                  {/* Action buttons — only for pending */}
-                  {req.status === 'pending' && (
-                    <div className="space-y-2">
-                      {rejectOpen === req._id ? (
-                        <div className="flex gap-2">
-                          <input
-                            autoFocus
-                            type="text"
-                            placeholder="Rejection reason (optional)"
-                            value={rejectNotes[req._id] || ''}
-                            onChange={e => setRejectNotes(prev => ({ ...prev, [req._id]: e.target.value }))}
-                            className="flex-1 px-3 py-2 text-sm bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:outline-none focus:border-zinc-400 placeholder-zinc-600"
-                          />
-                          <Button
-                            size="sm"
-                            onClick={() => handleReject(req._id)}
-                            disabled={actionLoading === req._id}
-                            className="bg-red-600 hover:bg-red-500 text-white border-0 shrink-0"
-                          >
-                            {actionLoading === req._id ? '…' : 'Reject'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setRejectOpen(null)}
-                            className="shrink-0"
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2 justify-end">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setRejectOpen(req._id)}
-                            className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
-                          >
-                            ✕ Reject
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleApprove(req._id)}
-                            disabled={actionLoading === req._id}
-                            className="bg-emerald-600 hover:bg-emerald-500 text-white border-0"
-                          >
-                            {actionLoading === req._id ? 'Approving…' : '✓ Approve'}
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            {/* ── Pagination ── */}
+            {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between pt-4 border-t border-zinc-800 mt-4">
-                <p className="text-xs text-zinc-500">
+              <div className="flex items-center justify-between pt-4 mt-4" style={{ borderTop: '1px solid var(--border)' }}>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                   Page {currentPage} of {totalPages}
                 </p>
                 <div className="flex items-center gap-1">
@@ -368,11 +434,11 @@ const AdminDashboard = () => {
                     <button
                       key={pg}
                       onClick={() => setCurrentPage(pg)}
-                      className={`w-7 h-7 rounded-lg text-xs font-medium transition-all ${
-                        pg === currentPage
-                          ? 'bg-zinc-700 text-white'
-                          : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
-                      }`}
+                      className="w-7 h-7 rounded-lg text-xs font-medium transition-all"
+                      style={{
+                        background: pg === currentPage ? 'var(--bg-hover)' : 'transparent',
+                        color: pg === currentPage ? 'var(--text-primary)' : 'var(--text-muted)',
+                      }}
                     >
                       {pg}
                     </button>
@@ -389,8 +455,7 @@ const AdminDashboard = () => {
             )}
           </>
         )}
-      </Card>
-
+      </div>
     </div>
   );
 };

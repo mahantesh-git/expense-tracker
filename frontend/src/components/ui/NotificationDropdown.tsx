@@ -127,62 +127,136 @@ export const NotificationDropdown = () => {
 
         {isOpen && (
           <>
-            {/* Mobile backdrop */}
-            <div className="fixed inset-0 z-40 sm:hidden" onClick={() => setIsOpen(false)} />
-            
-            <div className="absolute right-0 sm:-right-2 mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden z-50 transform origin-top-right transition-all">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm">
-                <h3 className="font-semibold text-sm text-zinc-100">Notifications</h3>
+            {/* Backdrop (both mobile and desktop) */}
+            <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+
+            {/* Mobile: slide-up bottom sheet */}
+            <div className="fixed inset-x-0 bottom-0 z-50 sm:hidden rounded-t-2xl overflow-hidden shadow-2xl"
+              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+              {/* Drag handle */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full" style={{ background: 'var(--border)' }} />
+              </div>
+              <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+                <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Notifications</h3>
                 {unreadCount > 0 && (
-                  <button 
+                  <button
                     onClick={handleMarkAllAsRead}
-                    className="text-[11px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors px-2 py-1 rounded-md hover:bg-[var(--accent)]/10"
+                    className="text-[11px] font-medium px-2 py-1 rounded-md transition-colors"
+                    style={{ color: 'var(--accent)' }}
                   >
                     Mark all read
                   </button>
                 )}
               </div>
-              
-              <div className="max-h-[400px] overflow-y-auto overscroll-contain custom-scrollbar">
+              <div className="max-h-[60vh] overflow-y-auto overscroll-contain">
                 {notifications.length === 0 ? (
-                  <div className="p-8 text-center flex flex-col items-center justify-center gap-2">
-                    <div className="w-10 h-10 rounded-full bg-zinc-800/50 flex items-center justify-center mb-2">
-                      <Bell size={18} className="text-zinc-500" />
+                  <div className="p-8 text-center flex flex-col items-center gap-2">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center mb-2" style={{ background: 'var(--bg-raised)' }}>
+                      <Bell size={18} style={{ color: 'var(--text-muted)' }} />
                     </div>
-                    <p className="text-zinc-400 text-sm font-medium">All caught up</p>
-                    <p className="text-zinc-600 text-xs">No new notifications</p>
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>All caught up</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>No new notifications</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-zinc-800/50">
+                  <div style={{ borderTop: '1px solid var(--border)' }}>
                     {notifications.map((notification) => (
-                      <div 
+                      <div
                         key={notification._id}
                         onClick={() => handleNotificationClick(notification)}
-                        className={`p-4 hover:bg-zinc-800/40 cursor-pointer transition-colors relative group ${
-                          !notification.read ? 'bg-zinc-800/10' : ''
-                        }`}
+                        className="p-4 cursor-pointer transition-colors relative"
+                        style={{
+                          background: !notification.read ? 'rgba(var(--accent-rgb, 220,20,60),0.04)' : 'transparent',
+                          borderBottom: '1px solid var(--border)',
+                        }}
                       >
                         {!notification.read && (
-                          <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--accent)]" />
+                          <div className="absolute left-0 top-0 bottom-0 w-0.5" style={{ background: 'var(--accent)' }} />
                         )}
                         <div className="flex gap-3">
-                          <div className={`mt-0.5 shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${!notification.read ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'bg-zinc-800 text-zinc-500'}`}>
+                          <div className="mt-0.5 shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+                            style={{ background: !notification.read ? 'var(--accent-dim)' : 'var(--bg-raised)', color: !notification.read ? 'var(--accent)' : 'var(--text-muted)' }}>
                             <Bell size={14} />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-start gap-2 mb-1">
-                              <span className={`text-sm font-semibold truncate ${
-                                !notification.read ? 'text-zinc-100' : 'text-zinc-400'
-                              }`}>
+                              <span className="text-sm font-semibold truncate" style={{ color: !notification.read ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
                                 {notification.title}
                               </span>
-                              <span className="text-[10px] text-zinc-500 shrink-0 mt-0.5 group-hover:text-zinc-400 transition-colors">
+                              <span className="text-[10px] shrink-0 mt-0.5" style={{ color: 'var(--text-muted)' }}>
                                 {new Date(notification.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
                               </span>
                             </div>
-                            <p className={`text-xs line-clamp-2 leading-relaxed ${
-                              !notification.read ? 'text-zinc-300' : 'text-zinc-500'
-                            }`}>
+                            <p className="text-xs line-clamp-2 leading-relaxed" style={{ color: !notification.read ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+                              {notification.message}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* bottom padding for safe area */}
+                <div className="h-6" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }} />
+              </div>
+            </div>
+
+            {/* Desktop: dropdown */}
+            <div className="hidden sm:block absolute right-0 mt-2 w-80 max-w-sm rounded-xl shadow-2xl overflow-hidden z-50"
+              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+                <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Notifications</h3>
+                {unreadCount > 0 && (
+                  <button
+                    onClick={handleMarkAllAsRead}
+                    className="text-[11px] font-medium px-2 py-1 rounded-md transition-colors"
+                    style={{ color: 'var(--accent)' }}
+                  >
+                    Mark all read
+                  </button>
+                )}
+              </div>
+              <div className="max-h-[400px] overflow-y-auto overscroll-contain">
+                {notifications.length === 0 ? (
+                  <div className="p-8 text-center flex flex-col items-center gap-2">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center mb-2" style={{ background: 'var(--bg-raised)' }}>
+                      <Bell size={18} style={{ color: 'var(--text-muted)' }} />
+                    </div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>All caught up</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>No new notifications</p>
+                  </div>
+                ) : (
+                  <div>
+                    {notifications.map((notification) => (
+                      <div
+                        key={notification._id}
+                        onClick={() => handleNotificationClick(notification)}
+                        className="p-4 cursor-pointer transition-colors relative group"
+                        style={{
+                          background: !notification.read ? 'rgba(var(--accent-rgb, 220,20,60),0.04)' : 'transparent',
+                          borderBottom: '1px solid var(--border)',
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-raised)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = !notification.read ? 'rgba(var(--accent-rgb, 220,20,60),0.04)' : 'transparent')}
+                      >
+                        {!notification.read && (
+                          <div className="absolute left-0 top-0 bottom-0 w-0.5" style={{ background: 'var(--accent)' }} />
+                        )}
+                        <div className="flex gap-3">
+                          <div className="mt-0.5 shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+                            style={{ background: !notification.read ? 'var(--accent-dim)' : 'var(--bg-raised)', color: !notification.read ? 'var(--accent)' : 'var(--text-muted)' }}>
+                            <Bell size={14} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start gap-2 mb-1">
+                              <span className="text-sm font-semibold truncate" style={{ color: !notification.read ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                                {notification.title}
+                              </span>
+                              <span className="text-[10px] shrink-0 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                {new Date(notification.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
+                              </span>
+                            </div>
+                            <p className="text-xs line-clamp-2 leading-relaxed" style={{ color: !notification.read ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
                               {notification.message}
                             </p>
                           </div>

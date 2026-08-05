@@ -20,14 +20,15 @@ app.use(compression()); // Gzip compress responses
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
+  'http://10.183.144.125:5173',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
 app.use(cors({
   origin: function (origin, callback) {
     if (
-      !origin || 
-      allowedOrigins.includes(origin) || 
+      !origin ||
+      allowedOrigins.includes(origin) ||
       (origin && origin.endsWith('.onrender.com')) // Automatically allow Render deployments
     ) {
       callback(null, true);
@@ -76,7 +77,7 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/expens
 mongoose.connect(MONGODB_URI)
   .then(async () => {
     console.log('Connected to MongoDB');
-    
+
     // Auto-create default admin if no users exist
     const userCount = await User.countDocuments();
     if (userCount === 0) {
@@ -91,7 +92,7 @@ mongoose.connect(MONGODB_URI)
       console.log('Default admin user created. Username: admin, Password: admin123');
     }
 
-    const server = app.listen(PORT, '0.0.0.0',() => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on port ${PORT}`);
     });
 
@@ -106,7 +107,7 @@ mongoose.connect(MONGODB_URI)
         });
       });
     };
-    
+
     process.on('SIGTERM', shutdown);
     process.on('SIGINT', shutdown);
   })

@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { NotificationDropdown } from '../components/ui/NotificationDropdown';
 import { SkeletonRow } from '../components/ui/Skeleton';
 import api from '../utils/api';
 
@@ -13,7 +11,6 @@ const statusConfig: Record<string, { label: string; dot: string; text: string; b
 };
 
 const ClientRequestsPage = () => {
-  const navigate = useNavigate();
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
@@ -60,16 +57,10 @@ const ClientRequestsPage = () => {
 
   return (
     <div className="p-4 md:p-6 space-y-6 w-full page-enter">
-      <header className="flex justify-between items-center pb-4 border-b border-zinc-800">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">My Expense Requests</h1>
-          <p className="text-sm text-zinc-400 mt-1">Track your submitted requests</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <NotificationDropdown />
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>← Back</Button>
-        </div>
-      </header>
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Expense Requests</h1>
+        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Track submitted requests</p>
+      </div>
 
       {/* Filter Tabs */}
       <div className="flex gap-2 flex-wrap">

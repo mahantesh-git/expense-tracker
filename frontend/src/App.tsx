@@ -12,6 +12,7 @@ import IWasChargedPage from './pages/IWasChargedPage';
 import BalancesPage from './pages/BalancesPage';
 import ClientRequestsPage from './pages/ClientRequestsPage';
 import { InstallPrompt } from './components/InstallPrompt';
+import { Shell } from './components/Shell';
 import { startKeepAlive } from './utils/keepAlive';
 
 const PrivateRoute = ({ children, role }: { children: React.ReactNode, role?: 'admin' | 'client' }) => {
@@ -32,71 +33,73 @@ const AppRoutes = () => {
   const { user } = useAuth();
 
   return (
-    <Routes>
-      <Route path="/login" element={!user ? <Login /> : <Navigate to={user.role === 'admin' ? '/admin' : '/client'} />} />
-      
-      <Route path="/admin" element={
-        <PrivateRoute role="admin">
-          <AdminDashboard />
-        </PrivateRoute>
-      } />
-      
-      <Route path="/admin/user/:id" element={
-        <PrivateRoute role="admin">
-          <AdminUserDetail />
-        </PrivateRoute>
-      } />
-      
-      <Route path="/admin/ledger" element={
-        <PrivateRoute role="admin">
-          <AdminLedger />
-        </PrivateRoute>
-      } />
+    <Shell>
+      <Routes>
+        <Route path="/login" element={!user ? <Login /> : <Navigate to={user.role === 'admin' ? '/admin' : '/client'} />} />
+        
+        <Route path="/admin" element={
+          <PrivateRoute role="admin">
+            <AdminDashboard />
+          </PrivateRoute>
+        } />
+        
+        <Route path="/admin/user/:id" element={
+          <PrivateRoute role="admin">
+            <AdminUserDetail />
+          </PrivateRoute>
+        } />
+        
+        <Route path="/admin/ledger" element={
+          <PrivateRoute role="admin">
+            <AdminLedger />
+          </PrivateRoute>
+        } />
 
-      <Route path="/admin/clients" element={
-        <PrivateRoute role="admin">
-          <AdminClients />
-        </PrivateRoute>
-      } />
-      
-      <Route path="/client/ledger" element={
-        <PrivateRoute role="client">
-          <AdminLedger />
-        </PrivateRoute>
-      } />
-      
-      <Route path="/client" element={
-        <PrivateRoute role="client">
-          <ClientDashboard />
-        </PrivateRoute>
-      } />
+        <Route path="/admin/clients" element={
+          <PrivateRoute role="admin">
+            <AdminClients />
+          </PrivateRoute>
+        } />
+        
+        <Route path="/client/ledger" element={
+          <PrivateRoute role="client">
+            <AdminLedger />
+          </PrivateRoute>
+        } />
+        
+        <Route path="/client" element={
+          <PrivateRoute role="client">
+            <ClientDashboard />
+          </PrivateRoute>
+        } />
 
-      <Route path="/client/paid" element={
-        <PrivateRoute role="client">
-          <IPaidPage />
-        </PrivateRoute>
-      } />
+        <Route path="/client/paid" element={
+          <PrivateRoute role="client">
+            <IPaidPage />
+          </PrivateRoute>
+        } />
 
-      <Route path="/client/charged" element={
-        <PrivateRoute role="client">
-          <IWasChargedPage />
-        </PrivateRoute>
-      } />
+        <Route path="/client/charged" element={
+          <PrivateRoute role="client">
+            <IWasChargedPage />
+          </PrivateRoute>
+        } />
 
-      <Route path="/client/balances" element={
-        <PrivateRoute role="client">
-          <BalancesPage />
-        </PrivateRoute>
-      } />
+        <Route path="/client/balances" element={
+          <PrivateRoute role="client">
+            <BalancesPage />
+          </PrivateRoute>
+        } />
 
-      <Route path="/client/requests" element={
-        <PrivateRoute role="client">
-          <ClientRequestsPage />
-        </PrivateRoute>
-      } />
+        <Route path="/client/requests" element={
+          <PrivateRoute role="client">
+            <ClientRequestsPage />
+          </PrivateRoute>
+        } />
 
-      <Route path="/" element={<Navigate to="/login" replace />} />
-    </Routes>
+        <Route path="/" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </Shell>
   );
 };
 
@@ -107,12 +110,10 @@ const App = () => {
 
   return (
     <AuthProvider>
-      <div className="min-h-screen" style={{ backgroundColor: 'var(--bg-base)', color: 'var(--text-primary)' }}>
-        <Router>
-          <AppRoutes />
-        </Router>
+      <Router>
+        <AppRoutes />
         <InstallPrompt />
-      </div>
+      </Router>
     </AuthProvider>
   );
 };

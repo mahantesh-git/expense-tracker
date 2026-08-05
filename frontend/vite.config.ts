@@ -17,11 +17,18 @@ export default defineConfig({
         name: 'Expense Tracker',
         short_name: 'ExpenseTracker',
         description: 'Track and split expenses seamlessly with friends',
-        theme_color: '#09090b',
-        background_color: '#09090b',
+        theme_color: '#dc143c',
+        background_color: '#0c0809',
         display: 'standalone',
         start_url: '/',
+        scope: '/',
         icons: [
+          {
+            src: 'favicon.svg',
+            sizes: '192x192 512x512',
+            type: 'image/svg+xml',
+            purpose: 'any'
+          },
           {
             src: 'icon-512.png',
             sizes: '512x512',

@@ -1,26 +1,35 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
-import { NotificationDropdown } from '../components/ui/NotificationDropdown';
 import AnimatedNumber from '../components/ui/AnimatedNumber';
+import { getAvatarColor } from '../components/Shell';
 import api from '../utils/api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { Download, ChevronRight, CheckCircle2 } from 'lucide-react';
 
 const BalancesPage = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [settlements, setSettlements] = useState<any[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    Promise.all([api.get('/expenses'), api.get('/settlements')]).then(([expRes, settRes]) => {
+  const fetchData = useCallback(async () => {
+    try {
+      const [expRes, settRes] = await Promise.all([
+        api.get('/expenses'),
+        api.get('/settlements'),
+      ]);
       setExpenses(expRes.data);
       setSettlements(settRes.data);
-    });
+    } catch (err) {
+      console.error(err);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const toggle = (key: string) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -86,38 +95,51 @@ const BalancesPage = () => {
   const PersonRow = ({ uid, b, isPositive, type }: { uid: string; b: any; isPositive: boolean; type: 'owes_you' | 'you_owe' }) => {
     const isOpen = expanded[uid];
     const relevant = b.transactions.filter((t: any) => t.type === type);
-    const amtColor = isPositive ? 'var(--color-success)' : 'var(--accent)';
+    const amtColor = isPositive ? 'var(--color-success)' : 'var(--color-danger)';
+    const avatarColor = getAvatarColor(b.username);
 
     return (
-      <div className="rounded-lg overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+      <div className="rounded-xl overflow-hidden mb-3 card-hover" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
         <button
-          className="w-full flex items-center justify-between px-4 py-3 text-left transition-colors"
-          style={{ background: 'transparent' }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-raised)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          className="w-full flex items-center justify-between p-4 text-left transition-colors"
+          style={{ background: isOpen ? 'var(--bg-raised)' : 'transparent' }}
+          onMouseEnter={e => { if (!isOpen) e.currentTarget.style.background = 'var(--bg-hover)'; }}
+          onMouseLeave={e => { if (!isOpen) e.currentTarget.style.background = 'transparent'; }}
           onClick={() => toggle(uid)}
         >
           <div className="flex items-center gap-3">
-            <span className={`text-xs transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`} style={{ color: 'var(--text-muted)', display: 'inline-block' }}>▶</span>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold" style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+            <div className="avatar-ring shrink-0" style={{ background: avatarColor, color: '#fff' }}>
               {b.username.charAt(0).toUpperCase()}
             </div>
             <div>
-              <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{b.username}</p>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{relevant.length} {relevant.length === 1 ? 'transaction' : 'transactions'}</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{b.username}</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                {relevant.length} {relevant.length === 1 ? 'transaction' : 'transactions'}
+              </p>
             </div>
           </div>
-          <span className="text-base font-semibold" style={{ color: amtColor }}>₹{Math.abs(b.net).toFixed(2)}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-lg font-bold" style={{ color: amtColor, letterSpacing: '-0.02em' }}>
+              ₹{Math.abs(b.net).toFixed(2)}
+            </span>
+            <ChevronRight 
+              size={16} 
+              style={{ color: 'var(--text-muted)', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s ease' }} 
+            />
+          </div>
         </button>
 
         {isOpen && (
-          <div className="accordion-open px-4 py-3 space-y-2" style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-raised)' }}>
+          <div className="accordion-open p-4 space-y-3" style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-raised)' }}>
             {relevant.map((t: any, i: number) => (
-              <div key={i} className="flex justify-between items-center">
-                <p className="text-xs truncate mr-4" style={{ color: 'var(--text-secondary)' }}>{t.desc}</p>
-                <p className="text-xs font-medium shrink-0" style={{ color: amtColor }}>₹{t.amount.toFixed(2)}</p>
+              <div key={i} className="flex justify-between items-center bg-black/20 p-2.5 rounded-lg border border-white/5">
+                <p className="text-sm font-medium mr-4 truncate" style={{ color: 'var(--text-secondary)' }}>{t.desc}</p>
+                <p className="text-sm font-semibold shrink-0" style={{ color: amtColor }}>₹{t.amount.toFixed(2)}</p>
               </div>
             ))}
+            {relevant.length === 0 && (
+              <p className="text-xs text-center py-2" style={{ color: 'var(--text-muted)' }}>No direct transactions.</p>
+            )}
           </div>
         )}
       </div>
@@ -126,66 +148,80 @@ const BalancesPage = () => {
 
   return (
     <div className="p-4 md:p-6 space-y-6 w-full page-enter">
-      <header className="flex items-center gap-4 pb-4 border-b border-zinc-800">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>← Back</Button>
-        <div className="flex-1">
-          <h1 className="text-xl font-semibold">Balances</h1>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>With {Object.keys(balanceMap).length} friends</p>
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Balances</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+            With {Object.keys(balanceMap).length} participants
+          </p>
         </div>
-        <div className="text-right flex items-center gap-4">
-          <Button onClick={exportToPDF} variant="secondary" size="sm" className="hidden sm:inline-flex">Export PDF</Button>
-          <NotificationDropdown />
-        </div>
-      </header>
+        <Button onClick={exportToPDF} variant="secondary" size="sm" className="hidden sm:inline-flex gap-2">
+          <Download size={14} /> Export PDF
+        </Button>
+        <button 
+          onClick={exportToPDF}
+          className="sm:hidden p-2 rounded-lg text-xs transition-colors"
+          style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+        >
+          <Download size={14} />
+        </button>
+      </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="p-3 rounded-lg" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Others Owe You</p>
-          <p className="text-xl font-semibold mt-1" style={{ color: 'var(--color-success)' }}>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="stat-card p-4">
+          <p className="text-xs font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Others Owe You</p>
+          <p className="text-2xl font-bold tracking-tight" style={{ color: 'var(--color-success)', letterSpacing: '-0.03em' }}>
             <AnimatedNumber value={owedToYou.reduce((a, [, b]) => a + b.net, 0)} prefix="₹" />
           </p>
-          <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{owedToYou.length} {owedToYou.length === 1 ? 'person' : 'people'}</p>
+          <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
+            {owedToYou.length} {owedToYou.length === 1 ? 'person' : 'people'}
+          </p>
         </div>
-        <div className="p-3 rounded-lg" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>You Owe Others</p>
-          <p className="text-xl font-semibold mt-1" style={{ color: 'var(--accent)' }}>
+        <div className="stat-card p-4">
+          <p className="text-xs font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>You Owe Others</p>
+          <p className="text-2xl font-bold tracking-tight" style={{ color: 'var(--color-danger)', letterSpacing: '-0.03em' }}>
             <AnimatedNumber value={youOwe.reduce((a, [, b]) => a + Math.abs(b.net), 0)} prefix="₹" />
           </p>
-          <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{youOwe.length} {youOwe.length === 1 ? 'person' : 'people'}</p>
+          <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
+            {youOwe.length} {youOwe.length === 1 ? 'person' : 'people'}
+          </p>
         </div>
       </div>
 
       {owedToYou.length > 0 && (
-        <section>
-          <p className="text-[10px] font-medium uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>They Owe You</p>
-          <div className="space-y-2">
+        <section className="mt-8">
+          <p className="section-label mb-3">They Owe You</p>
+          <div>
             {owedToYou.map(([uid, b]) => <PersonRow key={uid} uid={uid} b={b} isPositive={true} type="owes_you" />)}
           </div>
         </section>
       )}
 
       {youOwe.length > 0 && (
-        <section>
-          <p className="text-[10px] font-medium uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>You Owe Them</p>
-          <div className="space-y-2">
+        <section className="mt-8">
+          <p className="section-label mb-3">You Owe Them</p>
+          <div>
             {youOwe.map(([uid, b]) => <PersonRow key={uid} uid={uid} b={b} isPositive={false} type="you_owe" />)}
           </div>
         </section>
       )}
 
       {settled.length > 0 && (
-        <section>
-          <p className="text-[10px] font-medium uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>Settled</p>
-          <div className="space-y-2">
+        <section className="mt-8">
+          <p className="section-label mb-3">Settled</p>
+          <div className="space-y-3">
             {settled.map(([uid, b]) => (
-              <div key={uid} className="flex items-center justify-between px-4 py-3 rounded-lg opacity-40" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+              <div key={uid} className="flex items-center justify-between p-4 rounded-xl opacity-60" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold" style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
+                  <div className="avatar-ring opacity-50" style={{ background: 'var(--bg-raised)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
                     {b.username.charAt(0).toUpperCase()}
                   </div>
-                  <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{b.username}</span>
+                  <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{b.username}</span>
                 </div>
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>₹0.00 · Settled</span>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={14} style={{ color: 'var(--color-success)' }} />
+                  <span className="text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>₹0.00</span>
+                </div>
               </div>
             ))}
           </div>
@@ -193,7 +229,13 @@ const BalancesPage = () => {
       )}
 
       {owedToYou.length === 0 && youOwe.length === 0 && settled.length === 0 && (
-        <p className="text-sm text-center py-10" style={{ color: 'var(--text-muted)' }}>No balances yet.</p>
+        <div className="py-16 text-center">
+          <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-4" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)' }}>
+            <CheckCircle2 size={24} style={{ color: 'var(--text-muted)' }} />
+          </div>
+          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>No balances to show</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>You're all settled up with everyone.</p>
+        </div>
       )}
     </div>
   );

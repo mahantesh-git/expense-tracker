@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
 import { Button } from '../components/ui/Button';
-import { NotificationDropdown } from '../components/ui/NotificationDropdown';
 import AnimatedNumber from '../components/ui/AnimatedNumber';
 import api from '../utils/api';
 import jsPDF from 'jspdf';
@@ -11,7 +8,6 @@ import autoTable from 'jspdf-autotable';
 
 const IWasChargedPage = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
@@ -61,23 +57,21 @@ const IWasChargedPage = () => {
 
   return (
     <div className="p-4 md:p-6 space-y-5 w-full page-enter">
-      <header className="flex items-center gap-4 pb-4 border-b border-zinc-800">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>← Back</Button>
-        <div className="flex-1">
-          <h1 className="text-xl font-semibold">I Was Charged</h1>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{expenses.length} bills I am a part of</p>
+      <div className="flex items-start justify-between gap-4 mb-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>I Was Charged</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>{expenses.length} bills I am a part of</p>
         </div>
-        <div className="text-right flex items-center gap-4">
-          <Button onClick={exportToPDF} variant="secondary" size="sm" className="hidden sm:inline-flex">Export PDF</Button>
-          <div>
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="text-right">
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>My Share</p>
-            <p className="text-xl font-semibold" style={{ color: 'var(--color-danger)' }}>
+            <p className="text-lg font-bold" style={{ color: 'var(--color-danger)' }}>
               <AnimatedNumber value={totalCharged} prefix="₹" />
             </p>
           </div>
-          <NotificationDropdown />
+          <Button onClick={exportToPDF} variant="secondary" size="sm" className="hidden sm:inline-flex">Export PDF</Button>
         </div>
-      </header>
+      </div>
 
       <div className="space-y-2">
         {expenses.length === 0 ? (
