@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { protect, admin } = require('../middleware/auth');
-const {sendEmail}=require('../utils/sendEmail');
+const { sendEmail } = require('../utils/sendEmail');
 const mongoose = require('mongoose');
 
 const generateToken = (id) => {
@@ -44,10 +44,10 @@ router.post('/register', protect, admin, async (req, res) => {
     const { email, username } = req.body;
     const userExists = await User.findOne({ $or: [{ username: username }, { email: email }] }).session(session);
     let Username;
-    if(!username){
-      Username=email.trim().split('@')[0].toLowerCase();
+    if (!username) {
+      Username = email.trim().split('@')[0].toLowerCase();
     } else {
-      Username=username;
+      Username = username;
     }
 
     if (userExists) {
@@ -62,11 +62,11 @@ router.post('/register', protect, admin, async (req, res) => {
 
     const userArray = await User.create([{
       email,
-      username:Username,
+      username: Username,
       password: hashedPassword,
       role: 'client',
     }], { session });
-  
+
     const user = userArray[0];
 
     if (user) {
@@ -92,7 +92,7 @@ router.post('/register', protect, admin, async (req, res) => {
 // @route   PUT /api/auth/reset-password/:userId
 // @desc    Reset a user's password (Admin only)
 
-router.post('/reset-password-otp/:email' , protect , admin , async (req, res) => {
+router.post('/reset-password-otp/:email', protect, admin, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
@@ -106,24 +106,24 @@ router.post('/reset-password-otp/:email' , protect , admin , async (req, res) =>
     if (user.otpExpiry > Date.now()) {
       await session.abortTransaction();
       session.endSession();
-      return res.status(400).json({ success: false, message: `retry after few miniutes`});
+      return res.status(400).json({ success: false, message: `retry after few miniutes` });
     }
-    const otp= Math.floor(100000 + Math.random() * 900000);
+    const otp = Math.floor(100000 + Math.random() * 900000);
     console.log(otp)
-    user.otp=otp;
-    user.otpExpiry=Date.now() + 10*60*1000;
+    user.otp = otp;
+    user.otpExpiry = Date.now() + 10 * 60 * 1000;
     await user.save({ session });
-    
+
     // Don't wait for email to send before committing, or handle failure differently. 
     // Usually better to commit DB change then send email asynchronously.
     await session.commitTransaction();
     session.endSession();
 
-    const options={email:user.email,subject:'OTP for resetting your password',message:`Your requested OTP for resetting your password is: ${user.otp}`,html:`<h1>Your requested OTP for resetting your password is: ${user.otp}</h1>`}
+    const options = { email: user.email, subject: 'OTP for resetting your password', message: `Your requested OTP for resetting your password is: ${user.otp}`, html: `<h1>Your requested OTP for resetting your password is: ${user.otp}</h1>` }
     sendEmail(options).catch(err => console.error("Failed to send OTP", err));
-    
+
     return res.json({ message: 'OTP sent successfully' });
-  } catch (error) { 
+  } catch (error) {
     if (session.inTransaction()) {
       await session.abortTransaction();
       session.endSession();
@@ -135,7 +135,7 @@ router.put('/reset-password/:userId', protect, admin, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const { newPassword,otp,email } = req.body;
+    const { newPassword, otp, email } = req.body;
     const user = await User.findOne({ email }).session(session);
     if (!user) {
       await session.abortTransaction();
@@ -192,10 +192,11 @@ router.get('/peers', protect, async (req, res) => {
 });
 
 // @route   GET /api/auth/me
-// @desc    Get current logged-in user (with upiId)
+// @desc    Get current user profile
 router.get('/me', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password -otp -otpExpiry');
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -203,80 +204,115 @@ router.get('/me', protect, async (req, res) => {
 });
 
 // @route   PATCH /api/auth/profile
-// @desc    Update current user's UPI ID and/or username
+// @desc    Update current user profile (username)
 router.patch('/profile', protect, async (req, res) => {
-  const { upiId, username } = req.body;
-  const UPI_REGEX = /^[a-zA-Z0-9._-]+@[a-zA-Z]{3,}$/;
-  const updates = {};
-
-  // Validate & set upiId
-  if (upiId !== undefined) {
-    if (upiId !== null && upiId !== '' && !UPI_REGEX.test(upiId.trim())) {
-      return res.status(400).json({ message: 'Invalid UPI ID format. Example: name@okaxis' });
-    }
-    updates.upiId = upiId ? upiId.trim() : null;
-  }
-
-  // Validate & set username
-  if (username !== undefined) {
-    const trimmed = username.trim();
-    if (!trimmed || trimmed.length < 3) {
-      return res.status(400).json({ message: 'Username must be at least 3 characters.' });
-    }
-    if (!/^[a-zA-Z0-9._-]+$/.test(trimmed)) {
-      return res.status(400).json({ message: 'Username can only contain letters, numbers, dots, underscores and hyphens.' });
-    }
-    // Check uniqueness
-    const existing = await User.findOne({ username: trimmed, _id: { $ne: req.user._id } });
-    if (existing) {
-      return res.status(409).json({ message: 'This username is already taken.' });
-    }
-    updates.username = trimmed;
-  }
-
-  if (Object.keys(updates).length === 0) {
-    return res.status(400).json({ message: 'No valid fields to update.' });
-  }
-
   try {
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      updates,
-      { new: true }
-    ).select('-password -otp -otpExpiry');
-    res.json(user);
+    const session = await mongoose.startSession()
+    session.startTransaction();
+    const user = await User.findById(req.user.id).session(session);
+    if (!user) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (req.body.username !== undefined) {
+      // Check if username is taken by someone else
+      if (req.body.username !== user.username) {
+        const existing = await User.findOne({ username: req.body.username }).session(session);
+        if (existing) {
+          await session.abortTransaction();
+          session.endSession();
+          return res.status(400).json({ message: 'Username is already taken' });
+        }
+      }
+      user.username = req.body.username;
+    }
+
+    await user.save();
+    await session.commitTransaction()
+    session.endSession()
+    res.json({ _id: user._id, username: user.username, role: user.role });
   } catch (error) {
+    console.log(error)
+    await session.abortTransaction();
+    session.endSession();
+
     res.status(500).json({ message: 'Server error' });
   }
 });
 
-// @route   POST /api/auth/change-password
-// @desc    Change own password — requires current password verification
-router.post('/change-password', protect, async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
-
-  if (!currentPassword || !newPassword) {
-    return res.status(400).json({ message: 'Both current and new password are required.' });
-  }
-  if (newPassword.length < 6) {
-    return res.status(400).json({ message: 'New password must be at least 6 characters.' });
-  }
-
+// @route   PATCH /api/auth/profile
+// @desc    Update current user profile (username)
+router.patch('/profile', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const session = await mongoose.startSession()
+    session.startTransaction();
+    const user = await User.findById(req.user.id).session(session);
+    if (!user) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (req.body.username !== undefined) {
+      // Check if username is taken by someone else
+      if (req.body.username !== user.username) {
+        const existing = await User.findOne({ username: req.body.username }).session(session);
+        if (existing) {
+          await session.abortTransaction();
+          session.endSession();
+          return res.status(400).json({ message: 'Username is already taken' });
+        }
+      }
+      user.username = req.body.username;
+    }
+
+    await user.save();
+    await session.commitTransaction()
+    session.endSession()
+    return res.json({ _id: user._id, username: user.username, role: user.role });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession()
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/auth/change-password
+// @desc    Change current user password
+router.post('/change-password', protect, async (req, res) => {
+  try {
+    const session = await mongoose.startSession()
+    await session.startTransaction()
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ message: 'User not found' });
+    }
+
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
-      return res.status(401).json({ message: 'Current password is incorrect.' });
+      await session.abortTransaction()
+      session.endSession()
+      return res.status(400).json({ message: 'Incorrect current password' });
     }
 
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
     await user.save();
 
-    res.json({ message: 'Password changed successfully.' });
+    await session.commitTransaction();
+    session.endSession();
+    return res.json({ message: 'Password updated successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    await session.abortTransaction();
+    session.endSession();
+    return res.status(500).json({ message: 'Server error' });
   }
 });
 
 module.exports = router;
+

@@ -12,14 +12,13 @@ import IWasChargedPage from './pages/IWasChargedPage';
 import BalancesPage from './pages/BalancesPage';
 import ClientRequestsPage from './pages/ClientRequestsPage';
 import ProfileSettingsPage from './pages/ProfileSettingsPage';
-import PaymentClaimsPage from './pages/PaymentClaimsPage';
 import { InstallPrompt } from './components/InstallPrompt';
 import { Shell } from './components/Shell';
 import { startKeepAlive } from './utils/keepAlive';
 
 const PrivateRoute = ({ children, role }: { children: React.ReactNode, role?: 'admin' | 'client' }) => {
   const { user } = useAuth();
-  
+
   if (!user) {
     return <Navigate to="/login" replace />;
   }
@@ -38,19 +37,19 @@ const AppRoutes = () => {
     <Shell>
       <Routes>
         <Route path="/login" element={!user ? <Login /> : <Navigate to={user.role === 'admin' ? '/admin' : '/client'} />} />
-        
+
         <Route path="/admin" element={
           <PrivateRoute role="admin">
             <AdminDashboard />
           </PrivateRoute>
         } />
-        
+
         <Route path="/admin/user/:id" element={
           <PrivateRoute role="admin">
             <AdminUserDetail />
           </PrivateRoute>
         } />
-        
+
         <Route path="/admin/ledger" element={
           <PrivateRoute role="admin">
             <AdminLedger />
@@ -62,13 +61,13 @@ const AppRoutes = () => {
             <AdminClients />
           </PrivateRoute>
         } />
-        
+
         <Route path="/client/ledger" element={
           <PrivateRoute role="client">
             <AdminLedger />
           </PrivateRoute>
         } />
-        
+
         <Route path="/client" element={
           <PrivateRoute role="client">
             <ClientDashboard />
@@ -102,12 +101,6 @@ const AppRoutes = () => {
         <Route path="/client/settings" element={
           <PrivateRoute role="client">
             <ProfileSettingsPage />
-          </PrivateRoute>
-        } />
-
-        <Route path="/client/payments" element={
-          <PrivateRoute role="client">
-            <PaymentClaimsPage />
           </PrivateRoute>
         } />
 

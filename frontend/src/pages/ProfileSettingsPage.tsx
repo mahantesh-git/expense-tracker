@@ -3,10 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import {
   Settings, CheckCircle2, AlertCircle, Loader2,
-  Trash2, User, Lock, CreditCard, Eye, EyeOff,
+  User, Lock, Eye, EyeOff
 } from 'lucide-react';
-
-const UPI_REGEX = /^[a-zA-Z0-9._-]+@[a-zA-Z]{3,}$/;
 
 // ─── Reusable Section Card ────────────────────────────────────
 const SectionCard = ({
@@ -54,13 +52,6 @@ const Feedback = ({ error, success }: { error?: string; success?: string }) => {
 const ProfileSettingsPage = () => {
   const { user } = useAuth();
 
-  // ── UPI ──────────────────────────────────────────
-  const [upiId, setUpiId] = useState('');
-  const [savedUpiId, setSavedUpiId] = useState<string | null>(null);
-  const [upiSaving, setUpiSaving] = useState(false);
-  const [upiError, setUpiError] = useState('');
-  const [upiSuccess, setUpiSuccess] = useState('');
-
   // ── Username ─────────────────────────────────────
   const [username, setUsername] = useState('');
   const [usernameSaving, setUsernameSaving] = useState(false);
@@ -82,8 +73,6 @@ const ProfileSettingsPage = () => {
   useEffect(() => {
     api.get('/auth/me')
       .then(res => {
-        setSavedUpiId(res.data.upiId || null);
-        setUpiId(res.data.upiId || '');
         setUsername(res.data.username || '');
       })
       .catch(() => {})
@@ -95,33 +84,6 @@ const ProfileSettingsPage = () => {
     msg: string,
     duration = 3000
   ) => { set(msg); setTimeout(() => set(''), duration); };
-
-  // ── Save UPI ─────────────────────────────────────
-  const saveUpi = async () => {
-    if (upiId && !UPI_REGEX.test(upiId.trim())) {
-      setUpiError('Invalid UPI ID format. Example: name@okaxis');
-      return;
-    }
-    setUpiSaving(true); setUpiError('');
-    try {
-      const res = await api.patch('/auth/profile', { upiId: upiId.trim() || null });
-      setSavedUpiId(res.data.upiId || null);
-      flash(setUpiSuccess, 'UPI ID saved successfully.');
-    } catch (e: any) {
-      setUpiError(e?.response?.data?.message || 'Failed to save.');
-    } finally { setUpiSaving(false); }
-  };
-
-  const clearUpi = async () => {
-    setUpiSaving(true); setUpiError('');
-    try {
-      await api.patch('/auth/profile', { upiId: null });
-      setSavedUpiId(null); setUpiId('');
-      flash(setUpiSuccess, 'UPI ID removed.');
-    } catch (e: any) {
-      setUpiError(e?.response?.data?.message || 'Failed to remove.');
-    } finally { setUpiSaving(false); }
-  };
 
   // ── Save Username ─────────────────────────────────
   const saveUsername = async () => {
@@ -271,7 +233,6 @@ const ProfileSettingsPage = () => {
                 {showNew ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
-            {/* Password strength hint */}
             {newPwd.length > 0 && (
               <div className="flex gap-1 mt-1.5">
                 {[1, 2, 3, 4].map(i => (
@@ -315,65 +276,6 @@ const ProfileSettingsPage = () => {
             {pwdSaving ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />}
             {pwdSaving ? 'Changing…' : 'Change Password'}
           </button>
-        </div>
-      </SectionCard>
-
-      {/* ── UPI ID ──────────────────────────────── */}
-      <SectionCard icon={CreditCard} title="UPI ID" subtitle="Used when others pay you via the Pay Now button">
-        <div className="space-y-3">
-          {savedUpiId && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm"
-              style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)' }}>
-              <CheckCircle2 size={13} color="#22c55e" />
-              <span className="font-mono font-medium flex-1" style={{ color: 'var(--text-primary)' }}>
-                {savedUpiId}
-              </span>
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Current</span>
-            </div>
-          )}
-
-          <div>
-            <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-secondary)' }}>
-              {savedUpiId ? 'Update UPI ID' : 'Add UPI ID'}
-            </label>
-            <input
-              type="text"
-              value={upiId}
-              onChange={e => { setUpiId(e.target.value); setUpiError(''); setUpiSuccess(''); }}
-              placeholder="e.g. yourname@okaxis"
-              className="w-full px-4 py-3 rounded-xl text-sm font-mono outline-none transition-all"
-              style={inputStyle(!!upiError)}
-            />
-            {upiId && !UPI_REGEX.test(upiId) && (
-              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                Format: <span className="font-mono">name@bankname</span> (e.g. ram@okaxis, 9999999999@paytm)
-              </p>
-            )}
-            <Feedback error={upiError} success={upiSuccess} />
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={saveUpi}
-              disabled={upiSaving || upiId === savedUpiId}
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all"
-              style={btnStyle(upiSaving || upiId === savedUpiId)}
-            >
-              {upiSaving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-              {upiSaving ? 'Saving…' : 'Save UPI ID'}
-            </button>
-            {savedUpiId && (
-              <button
-                onClick={clearUpi}
-                disabled={upiSaving}
-                className="px-3 py-2.5 rounded-xl text-sm flex items-center gap-1.5 transition-colors"
-                style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)' }}
-                title="Remove UPI ID"
-              >
-                <Trash2 size={14} />
-              </button>
-            )}
-          </div>
         </div>
       </SectionCard>
     </div>

@@ -29,11 +29,6 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
-  upiId: {
-    type: String,
-    default: null,
-    trim: true,
-  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);
