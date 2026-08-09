@@ -12,6 +12,8 @@ import {
   BookOpen,
   ArrowLeft,
   Download,
+  Settings,
+  CreditCard,
 } from 'lucide-react';
 
 // ─── Logo mark ────────────────────────────────────────────
@@ -59,6 +61,7 @@ const ADMIN_LINKS = [
 const SUB_ROUTES = [
   '/admin/user/', '/admin/ledger', '/admin/clients',
   '/client/paid', '/client/charged', '/client/balances', '/client/requests', '/client/ledger',
+  '/client/settings', '/client/payments', '/admin/settings',
 ];
 
 // ─── Shell ────────────────────────────────────────────────
@@ -257,6 +260,28 @@ export const Shell = ({ children }: ShellProps) => {
           </div>
 
           <NotificationDropdown />
+
+          {/* Settings icon */}
+          <button
+            onClick={() => navigate(isAdmin ? '/admin/settings' : '/client/settings')}
+            title="Settings — UPI ID"
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+            style={{ background: 'var(--bg-raised)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+          >
+            <Settings size={14} />
+          </button>
+
+          {/* My Payments icon — client only */}
+          {isClient && (
+            <button
+              onClick={() => navigate('/client/payments')}
+              title="My Payment Claims"
+              className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+              style={{ background: 'var(--bg-raised)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+            >
+              <CreditCard size={14} />
+            </button>
+          )}
 
           <Button variant="ghost" size="sm" onClick={logout} className="text-xs hidden sm:inline-flex">
             Sign Out

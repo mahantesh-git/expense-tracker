@@ -191,5 +191,92 @@ router.get('/peers', protect, async (req, res) => {
   }
 });
 
-module.exports = router;
+// @route   GET /api/auth/me
+// @desc    Get current logged-in user (with upiId)
+router.get('/me', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('-password -otp -otpExpiry');
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
+// @route   PATCH /api/auth/profile
+// @desc    Update current user's UPI ID and/or username
+router.patch('/profile', protect, async (req, res) => {
+  const { upiId, username } = req.body;
+  const UPI_REGEX = /^[a-zA-Z0-9._-]+@[a-zA-Z]{3,}$/;
+  const updates = {};
+
+  // Validate & set upiId
+  if (upiId !== undefined) {
+    if (upiId !== null && upiId !== '' && !UPI_REGEX.test(upiId.trim())) {
+      return res.status(400).json({ message: 'Invalid UPI ID format. Example: name@okaxis' });
+    }
+    updates.upiId = upiId ? upiId.trim() : null;
+  }
+
+  // Validate & set username
+  if (username !== undefined) {
+    const trimmed = username.trim();
+    if (!trimmed || trimmed.length < 3) {
+      return res.status(400).json({ message: 'Username must be at least 3 characters.' });
+    }
+    if (!/^[a-zA-Z0-9._-]+$/.test(trimmed)) {
+      return res.status(400).json({ message: 'Username can only contain letters, numbers, dots, underscores and hyphens.' });
+    }
+    // Check uniqueness
+    const existing = await User.findOne({ username: trimmed, _id: { $ne: req.user._id } });
+    if (existing) {
+      return res.status(409).json({ message: 'This username is already taken.' });
+    }
+    updates.username = trimmed;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ message: 'No valid fields to update.' });
+  }
+
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      updates,
+      { new: true }
+    ).select('-password -otp -otpExpiry');
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/auth/change-password
+// @desc    Change own password — requires current password verification
+router.post('/change-password', protect, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: 'Both current and new password are required.' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ message: 'New password must be at least 6 characters.' });
+  }
+
+  try {
+    const user = await User.findById(req.user._id);
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Current password is incorrect.' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    res.json({ message: 'Password changed successfully.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+module.exports = router;

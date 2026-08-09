@@ -11,6 +11,8 @@ import IPaidPage from './pages/IPaidPage';
 import IWasChargedPage from './pages/IWasChargedPage';
 import BalancesPage from './pages/BalancesPage';
 import ClientRequestsPage from './pages/ClientRequestsPage';
+import ProfileSettingsPage from './pages/ProfileSettingsPage';
+import PaymentClaimsPage from './pages/PaymentClaimsPage';
 import { InstallPrompt } from './components/InstallPrompt';
 import { Shell } from './components/Shell';
 import { startKeepAlive } from './utils/keepAlive';
@@ -94,6 +96,24 @@ const AppRoutes = () => {
         <Route path="/client/requests" element={
           <PrivateRoute role="client">
             <ClientRequestsPage />
+          </PrivateRoute>
+        } />
+
+        <Route path="/client/settings" element={
+          <PrivateRoute role="client">
+            <ProfileSettingsPage />
+          </PrivateRoute>
+        } />
+
+        <Route path="/client/payments" element={
+          <PrivateRoute role="client">
+            <PaymentClaimsPage />
+          </PrivateRoute>
+        } />
+
+        <Route path="/admin/settings" element={
+          <PrivateRoute role="admin">
+            <ProfileSettingsPage />
           </PrivateRoute>
         } />
 

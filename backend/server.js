@@ -55,6 +55,7 @@ app.use('/api/expenses', require('./routes/expenseRoutes'));
 app.use('/api/settlements', require('./routes/settlementRoutes'));
 app.use('/api/expense-requests', require('./routes/expenseRequestRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
+app.use('/api/payments', require('./routes/paymentRoutes'));
 app.get('/api/health', async (req, res) => {
   const dbState = mongoose.connection.readyState;
   const status = {

@@ -12,6 +12,8 @@ import {
   CheckCircle2,
   XCircle,
   CircleDot,
+  CreditCard,
+  AlertTriangle,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────
@@ -88,17 +90,25 @@ const AdminDashboard = () => {
   const [rejectNotes, setRejectNotes] = useState<Record<string, string>>({});
   const [rejectOpen, setRejectOpen] = useState<string | null>(null);
 
+  const [paymentClaims, setPaymentClaims] = useState<any[]>([]);
+  const [claimFilter, setClaimFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
+  const [claimActionLoading, setClaimActionLoading] = useState<string | null>(null);
+  const [claimRejectNote, setClaimRejectNote] = useState<Record<string, string>>({});
+  const [claimRejectOpen, setClaimRejectOpen] = useState<string | null>(null);
+
   const fetchData = useCallback(async (showSkeleton = false) => {
     if (showSkeleton) setDataLoading(true);
     try {
-      const [usersRes, expRes, reqRes] = await Promise.all([
+      const [usersRes, expRes, reqRes, claimsRes] = await Promise.all([
         api.get('/auth/users'),
         api.get('/expenses'),
         api.get('/expense-requests'),
+        api.get('/payments/claims'),
       ]);
       setUsers(usersRes.data.filter((u: any) => u.role !== 'admin'));
       setExpenses(expRes.data);
       setRequests(reqRes.data);
+      setPaymentClaims(claimsRes.data);
     } catch (error) {
       console.error('Failed to fetch admin data', error);
     } finally {
@@ -111,6 +121,36 @@ const AdminDashboard = () => {
     const interval = setInterval(() => fetchData(false), 10000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  // ─── Payment claim handlers ───────────────────
+  const handleClaimApprove = async (id: string) => {
+    setClaimActionLoading(id);
+    try {
+      await api.patch(`/payments/claim/${id}/approve`);
+      fetchData();
+    } catch (error: any) {
+      alert(error?.response?.data?.message || 'Approval failed');
+    } finally {
+      setClaimActionLoading(null);
+    }
+  };
+
+  const handleClaimReject = async (id: string) => {
+    const note = claimRejectNote[id]?.trim();
+    if (!note) { alert('Please enter a rejection reason.'); return; }
+    setClaimActionLoading(id);
+    try {
+      await api.patch(`/payments/claim/${id}/reject`, { adminNote: note });
+      setClaimRejectOpen(null);
+      setClaimRejectNote(prev => { const n = { ...prev }; delete n[id]; return n; });
+      fetchData();
+    } catch (error: any) {
+      alert(error?.response?.data?.message || 'Rejection failed');
+    } finally {
+      setClaimActionLoading(null);
+    }
+  };
+
 
   // ─── Approve ─────────────────────────────────
   const handleApprove = async (id: string) => {
@@ -454,6 +494,139 @@ const AdminDashboard = () => {
               </div>
             )}
           </>
+        )}
+      </div>
+      {/* ─── Payment Claims Section ─── */}
+      <div className="glass-panel p-5 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-dim)' }}>
+              <CreditCard size={14} style={{ color: 'var(--accent)' }} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Payment Claims</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {paymentClaims.filter(c => c.status === 'pending').length} pending review
+              </p>
+            </div>
+          </div>
+          {/* Filter tabs */}
+          <div className="flex gap-1">
+            {(['pending', 'approved', 'rejected', 'all'] as const).map(f => (
+              <button key={f} onClick={() => setClaimFilter(f)}
+                className="px-2.5 py-1 rounded-lg text-xs font-medium capitalize transition-all"
+                style={{
+                  background: claimFilter === f ? 'var(--accent)' : 'var(--bg-raised)',
+                  color: claimFilter === f ? '#fff' : 'var(--text-muted)',
+                }}>
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {paymentClaims.filter(c => claimFilter === 'all' || c.status === claimFilter).length === 0 ? (
+          <p className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>No payment claims found.</p>
+        ) : (
+          <div className="space-y-3">
+            {paymentClaims
+              .filter(c => claimFilter === 'all' || c.status === claimFilter)
+              .map(claim => {
+                const isOverdue = claim.status === 'pending' &&
+                  Date.now() - new Date(claim.createdAt).getTime() > 7 * 24 * 60 * 60 * 1000;
+                return (
+                  <div key={claim._id} className="rounded-xl p-4 space-y-3"
+                    style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)' }}>
+                    {/* Claim header */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                            {claim.payer?.username}
+                          </span>
+                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>→</span>
+                          <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
+                            {claim.payee?.username}
+                          </span>
+                          {isOverdue && (
+                            <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                              style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>
+                              <AlertTriangle size={9} /> Overdue 7d+
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs mt-0.5 font-mono" style={{ color: 'var(--text-muted)' }}>
+                          UTR: {claim.utrNumber}
+                        </p>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                          {new Date(claim.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-lg font-bold" style={{ color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
+                          ₹{claim.amount.toFixed(2)}
+                        </p>
+                        <span className={`badge badge-${claim.status}`}>
+                          {claim.status === 'pending' ? '⏳' : claim.status === 'approved' ? '✓' : '✕'} {claim.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Admin note on rejection */}
+                    {claim.status === 'rejected' && claim.adminNote && (
+                      <p className="text-xs px-3 py-2 rounded-lg"
+                        style={{ background: 'rgba(248,113,113,0.08)', color: '#f87171' }}>
+                        Reason: {claim.adminNote}
+                      </p>
+                    )}
+
+                    {/* Actions — pending only */}
+                    {claim.status === 'pending' && (
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm" variant="primary"
+                            className="flex-1 text-xs"
+                            onClick={() => handleClaimApprove(claim._id)}
+                            disabled={claimActionLoading === claim._id}
+                          >
+                            <CheckCircle2 size={13} /> Approve — Resolve Balance
+                          </Button>
+                          <Button
+                            size="sm" variant="danger"
+                            className="flex-1 text-xs"
+                            onClick={() => setClaimRejectOpen(claimRejectOpen === claim._id ? null : claim._id)}
+                            disabled={claimActionLoading === claim._id}
+                          >
+                            <XCircle size={13} /> Reject
+                          </Button>
+                        </div>
+                        {claimRejectOpen === claim._id && (
+                          <div className="space-y-2">
+                            <textarea
+                              rows={2}
+                              placeholder="Rejection reason (required)…"
+                              value={claimRejectNote[claim._id] || ''}
+                              onChange={e => setClaimRejectNote(prev => ({ ...prev, [claim._id]: e.target.value }))}
+                              className="w-full px-3 py-2 rounded-xl text-xs outline-none resize-none"
+                              style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                            />
+                            <Button
+                              size="sm" variant="danger"
+                              className="w-full text-xs"
+                              onClick={() => handleClaimReject(claim._id)}
+                              disabled={claimActionLoading === claim._id || !claimRejectNote[claim._id]?.trim()}
+                            >
+                              Confirm Rejection
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
         )}
       </div>
     </div>

@@ -3,16 +3,18 @@ import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import AnimatedNumber from '../components/ui/AnimatedNumber';
 import { getAvatarColor } from '../components/Shell';
+import { UPIPayModal } from '../components/ui/UPIPayModal';
 import api from '../utils/api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Download, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { Download, ChevronRight, CheckCircle2, CreditCard } from 'lucide-react';
 
 const BalancesPage = () => {
   const { user } = useAuth();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [settlements, setSettlements] = useState<any[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [payModal, setPayModal] = useState<{ uid: string; name: string; amount: number } | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -118,13 +120,25 @@ const BalancesPage = () => {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <span className="text-lg font-bold" style={{ color: amtColor, letterSpacing: '-0.02em' }}>
               ₹{Math.abs(b.net).toFixed(2)}
             </span>
-            <ChevronRight 
-              size={16} 
-              style={{ color: 'var(--text-muted)', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s ease' }} 
+            {/* Pay Now button — only for "you_owe" rows */}
+            {type === 'you_owe' && (
+              <button
+                onClick={e => { e.stopPropagation(); setPayModal({ uid, name: b.username, amount: Math.abs(b.net) }); }}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold shrink-0 transition-all"
+                style={{ background: 'var(--accent)', color: '#fff' }}
+                title={`Pay ₹${Math.abs(b.net).toFixed(2)} to ${b.username}`}
+              >
+                <CreditCard size={12} />
+                <span className="hidden sm:inline">Pay Now</span>
+              </button>
+            )}
+            <ChevronRight
+              size={16}
+              style={{ color: 'var(--text-muted)', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s ease' }}
             />
           </div>
         </button>
@@ -236,6 +250,18 @@ const BalancesPage = () => {
           <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>No balances to show</p>
           <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>You're all settled up with everyone.</p>
         </div>
+      )}
+
+      {/* UPI Pay Modal */}
+      {payModal && (
+        <UPIPayModal
+          isOpen={true}
+          onClose={() => setPayModal(null)}
+          payeeId={payModal.uid}
+          payeeName={payModal.name}
+          amount={payModal.amount}
+          onSuccess={() => { setPayModal(null); fetchData(); }}
+        />
       )}
     </div>
   );
