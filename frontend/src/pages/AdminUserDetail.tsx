@@ -36,6 +36,9 @@ const AdminUserDetail = () => {
   const [reset_otp, setResetOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
 
+  // Status toggle
+  const [statusLoading, setStatusLoading] = useState(false);
+
   const fetchData = async () => {
     try {
       const [usersRes, expRes, settRes] = await Promise.all([
@@ -194,6 +197,19 @@ const AdminUserDetail = () => {
     }
   };
 
+  const handleToggleStatus = async () => {
+    setStatusLoading(true);
+    try {
+      const res = await api.patch(`/auth/users/${id}/status`);
+      // Update targetUser directly from the API response — no full refetch needed
+      setTargetUser((prev: any) => ({ ...prev, isActive: res.data.isActive }));
+    } catch (err) {
+      console.error('Failed to toggle status', err);
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
   if (dataLoading) return (
     <div className="p-4 md:p-6 space-y-6 w-full">
       <div className="h-8 w-40 bg-zinc-800 rounded animate-pulse" />
@@ -204,18 +220,28 @@ const AdminUserDetail = () => {
     </div>
   );
 
-  const clients = users.filter(u => u.role !== 'admin');
+  const clients = users.filter(u => u.role !== 'admin' && u.isActive !== false);
 
   return (
     <div className="p-4 md:p-6 space-y-6 w-full page-enter">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>{targetUser.username}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>{targetUser.username}</h1>
+            {targetUser.isActive === false && (
+              <span className="px-2 py-0.5 text-xs font-medium bg-red-950/40 text-red-400 border border-red-900/60 rounded-full">Deactivated</span>
+            )}
+          </div>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Client Ledger &amp; Management</p>
         </div>
-        <Button variant="secondary" size="sm" onClick={() => { setShowResetModal(true); setResetError(''); setResetSuccess(''); setOtpSent(false); setResetOtp(''); setNewPassword(''); setConfirmPassword(''); }}>
-          Reset Password
-        </Button>
+        <div className="flex gap-2">
+          <Button variant={targetUser.isActive === false ? 'primary' : 'danger'} size="sm" onClick={handleToggleStatus} loading={statusLoading}>
+            {targetUser.isActive === false ? 'Reactivate' : 'Deactivate'}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => { setShowResetModal(true); setResetError(''); setResetSuccess(''); setOtpSent(false); setResetOtp(''); setNewPassword(''); setConfirmPassword(''); }}>
+            Reset Password
+          </Button>
+        </div>
       </div>
 
       {/* Reset Password Modal */}

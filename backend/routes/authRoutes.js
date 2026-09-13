@@ -20,6 +20,10 @@ router.post('/login', async (req, res) => {
     const { username, password } = req.body;
     const user = await User.findOne({ username: username } || { email: username });
 
+    if (user && user.isActive === false) {
+      return res.status(403).json({ message: 'Your account has been deactivated' });
+    }
+
     if (user && (await bcrypt.compare(password, user.password))) {
       res.json({
         _id: user._id,
@@ -184,7 +188,7 @@ router.get('/users', protect, admin, async (req, res) => {
 // @desc    Get all non-admin users — accessible to any logged-in user (for split participant list)
 router.get('/peers', protect, async (req, res) => {
   try {
-    const users = await User.find({ role: 'client' }).select('-password -otp -otpExpiry');
+    const users = await User.find({ role: 'client', isActive: { $ne: false } }).select('-password -otp -otpExpiry');
     res.json(users);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -306,7 +310,7 @@ router.post('/change-password', protect, async (req, res) => {
 
     await session.commitTransaction();
     session.endSession();
-    return res.json({ message: 'Password updated successfully' });
+    return res.status(200).json({ message: 'Password updated successfully' });
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
@@ -314,5 +318,23 @@ router.post('/change-password', protect, async (req, res) => {
   }
 });
 
-module.exports = router;
+// @route   PATCH /api/auth/users/:id/status
+// @desc    Toggle user active status (Admin only)
+router.patch('/users/:id/status', protect, admin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Toggle isActive status
+    user.isActive = !user.isActive;
+    await user.save();
+    
+    res.json({ _id: user._id, username: user.username, isActive: user.isActive });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
+module.exports = router;

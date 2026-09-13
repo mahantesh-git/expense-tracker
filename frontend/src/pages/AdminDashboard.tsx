@@ -12,6 +12,8 @@ import {
   CheckCircle2,
   XCircle,
   CircleDot,
+  UserX,
+  ShieldOff,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────
@@ -145,6 +147,8 @@ const AdminDashboard = () => {
   // ─── Derived ─────────────────────────────────
   const totalSpentGlobal = expenses.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
   const pendingCount = requests.filter(r => r.status === 'pending').length;
+  const activeClients = users.filter(u => u.isActive !== false);
+  const deactivatedClients = users.filter(u => u.isActive === false);
 
   const uniquePayers = Array.from(
     new Map(requests.map(r => [r.requestedBy?._id, r.requestedBy?.username])).entries()
@@ -174,9 +178,8 @@ const AdminDashboard = () => {
   return (
     <div className="p-4 md:p-6 space-y-6 w-full page-enter">
 
-      {/* ── Stats Row ─────────────────────────── */}
-      {dataLoading ? <SkeletonStats count={3} /> : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+      {dataLoading ? <SkeletonStats count={4} /> : (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <StatCard
             label="Global Volume"
             value={totalSpentGlobal}
@@ -186,9 +189,16 @@ const AdminDashboard = () => {
           />
           <StatCard
             label="Active Clients"
-            value={users.length}
+            value={activeClients.length}
             decimals={0}
             icon={Users}
+          />
+          <StatCard
+            label="Deactivated"
+            value={deactivatedClients.length}
+            decimals={0}
+            icon={UserX}
+            valueColor={deactivatedClients.length > 0 ? 'var(--color-danger)' : 'var(--text-primary)'}
           />
           <div className="col-span-2 sm:col-span-1">
             <StatCard
@@ -201,6 +211,44 @@ const AdminDashboard = () => {
                 <span className="w-2.5 h-2.5 bg-amber-400 rounded-full animate-pulse mb-1.5" />
               ) : undefined}
             />
+          </div>
+        </div>
+      )}
+
+      {/* ── Deactivated Clients Panel ────────────── */}
+      {!dataLoading && deactivatedClients.length > 0 && (
+        <div className="glass-panel p-5">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.12)' }}>
+              <ShieldOff size={14} style={{ color: 'var(--color-danger)' }} />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Deactivated Accounts</h2>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{deactivatedClients.length} client{deactivatedClients.length !== 1 ? 's' : ''} currently suspended</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {deactivatedClients.map((u: any) => (
+              <div
+                key={u._id}
+                className="flex items-center justify-between p-3 rounded-xl"
+                style={{ background: 'var(--bg-raised)', border: '1px solid rgba(239,68,68,0.2)' }}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 opacity-50"
+                    style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                  >
+                    {u.username.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{u.username}</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{u.email || 'No email'}</p>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 text-[10px] font-medium bg-red-950/40 text-red-400 border border-red-900/60 rounded-full">Deactivated</span>
+              </div>
+            ))}
           </div>
         </div>
       )}

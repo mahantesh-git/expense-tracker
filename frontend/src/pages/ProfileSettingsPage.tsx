@@ -75,7 +75,7 @@ const ProfileSettingsPage = () => {
       .then(res => {
         setUsername(res.data.username || '');
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
 

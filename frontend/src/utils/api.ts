@@ -68,14 +68,28 @@ api.interceptors.response.use(
         timestamp: Date.now()
       });
     } else {
-      // Clear cache on POST, PUT, DELETE (mutations) to ensure fresh data
-      if (['post', 'put', 'delete'].includes(response.config.method?.toLowerCase() || '')) {
+      // Clear cache on any mutation to ensure fresh data
+      if (['post', 'put', 'delete', 'patch'].includes(response.config.method?.toLowerCase() || '')) {
         cache.clear();
       }
     }
     return response;
   },
   (error) => {
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      const message: string = error.response?.data?.message || '';
+      // Only log out if the current user's own account is deactivated/unauthorized
+      // Not when admin is receiving data about another user
+      if (
+        message.toLowerCase().includes('deactivated') ||
+        message.toLowerCase().includes('no token') ||
+        message.toLowerCase().includes('token failed') ||
+        error.response?.status === 401
+      ) {
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
+    }
     return Promise.reject(error);
   }
 );

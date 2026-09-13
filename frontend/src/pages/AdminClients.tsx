@@ -116,8 +116,13 @@ const AdminClients = () => {
                     <div className="avatar-ring shrink-0" style={{ background: getAvatarColor(u.username), color: '#fff' }}>
                       {u.username.charAt(0).toUpperCase()}
                     </div>
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{u.username}</h3>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{u.username}</h3>
+                        {u.isActive === false && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-medium bg-red-950/40 text-red-400 border border-red-900/60 rounded flex-shrink-0">Deactivated</span>
+                        )}
+                      </div>
                       <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{u.email || 'No email'}</p>
                     </div>
                   </div>
