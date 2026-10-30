@@ -13,6 +13,7 @@ dotenv.config();
 const app = express();
 
 // Security & Optimization Middleware
+app.set('trust proxy', 1);
 app.use(helmet()); // Sets security headers
 app.use(compression()); // Gzip compress responses
 
