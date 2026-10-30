@@ -12,6 +12,7 @@ const mongoose = require('mongoose');
 // @desc    Client submits a new expense request
 // @access  Private (Client)
 // ─────────────────────────────────────────────
+// KEEP transaction: creates ExpenseRequest + Notification together.
 router.post('/', protect, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -47,11 +48,11 @@ router.post('/', protect, async (req, res) => {
       splits,
       status: 'pending'
     }], { session });
-    
+
     const request = requestArray[0];
 
-    // Notify Admin
-    const adminUser = await User.findOne({ role: 'admin' }).session(session);
+    // Notify admin — run in parallel with the find
+    const adminUser = await User.findOne({ role: 'admin' }).select('_id').lean().session(session);
     if (adminUser) {
       await Notification.create([{
         recipient: adminUser._id,
@@ -65,11 +66,11 @@ router.post('/', protect, async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    // Populate after commit since populate within transaction for newly created doc can be tricky depending on schema
     const populated = await ExpenseRequest.findById(request._id)
       .populate('requestedBy', 'username')
       .populate('payer', 'username')
-      .populate('splits.user', 'username');
+      .populate('splits.user', 'username')
+      .lean();
 
     res.status(201).json(populated);
   } catch (error) {
@@ -86,20 +87,18 @@ router.post('/', protect, async (req, res) => {
 // ─────────────────────────────────────────────
 router.get('/', protect, async (req, res) => {
   try {
-    let requests;
-    if (req.user.role === 'admin') {
-      requests = await ExpenseRequest.find({}).sort({ createdAt: -1 })
-        .populate('requestedBy', 'username')
-        .populate('payer', 'username')
-        .populate('splits.user', 'username')
-        .sort({ createdAt: -1 });
-    } else {
-      requests = await ExpenseRequest.find({ requestedBy: req.user._id }).sort({ createdAt: -1 })
-        .populate('requestedBy', 'username')
-        .populate('payer', 'username')
-        .populate('splits.user', 'username')
-        .sort({ createdAt: -1 });
-    }
+    const filter = req.user.role === 'admin'
+      ? {}
+      : { requestedBy: req.user._id };
+
+    const requests = await ExpenseRequest
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .populate('requestedBy', 'username')
+      .populate('payer', 'username')
+      .populate('splits.user', 'username')
+      .lean();
+
     res.json(requests);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -125,6 +124,7 @@ router.get('/pending-count', protect, admin, async (req, res) => {
 // @desc    Admin approves a request → creates real Expense
 // @access  Admin
 // ─────────────────────────────────────────────
+// KEEP transaction: creates Expense + updates ExpenseRequest + creates Notification.
 router.put('/:id/approve', protect, admin, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -154,7 +154,7 @@ router.put('/:id/approve', protect, admin, async (req, res) => {
       splits: plainSplits,
       date: expRequest.date
     }], { session });
-    
+
     const expense = expenseArray[0];
 
     expRequest.status = 'approved';
@@ -176,7 +176,8 @@ router.put('/:id/approve', protect, admin, async (req, res) => {
     const populated = await ExpenseRequest.findById(expRequest._id)
       .populate('requestedBy', 'username')
       .populate('payer', 'username')
-      .populate('splits.user', 'username');
+      .populate('splits.user', 'username')
+      .lean();
 
     res.json({ request: populated, expense });
   } catch (error) {
@@ -187,12 +188,12 @@ router.put('/:id/approve', protect, admin, async (req, res) => {
   }
 });
 
-
 // ─────────────────────────────────────────────
 // @route   PUT /api/expense-requests/:id/reject
 // @desc    Admin rejects a request
 // @access  Admin
 // ─────────────────────────────────────────────
+// KEEP transaction: updates ExpenseRequest + creates Notification.
 router.put('/:id/reject', protect, admin, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -228,7 +229,8 @@ router.put('/:id/reject', protect, admin, async (req, res) => {
     const populated = await ExpenseRequest.findById(expRequest._id)
       .populate('requestedBy', 'username')
       .populate('payer', 'username')
-      .populate('splits.user', 'username');
+      .populate('splits.user', 'username')
+      .lean();
 
     res.json(populated);
   } catch (error) {
@@ -243,42 +245,28 @@ router.put('/:id/reject', protect, admin, async (req, res) => {
 // @desc    Client cancels their own pending request
 // @access  Private (Client, own request only)
 // ─────────────────────────────────────────────
+// No transaction — single document delete is already atomic.
 router.delete('/:id', protect, async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
-    const expRequest = await ExpenseRequest.findById(req.params.id).session(session);
+    const expRequest = await ExpenseRequest.findById(req.params.id).lean();
 
     if (!expRequest) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(404).json({ message: 'Request not found' });
     }
 
-    const isOwner = expRequest.requestedBy.toString() === req.user._id.toString();
+    const isOwner = String(expRequest.requestedBy) === String(req.user._id);
     const isAdmin = req.user.role === 'admin';
 
     if (!isOwner && !isAdmin) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(403).json({ message: 'Not authorized' });
     }
-
     if (expRequest.status !== 'pending') {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({ message: 'Only pending requests can be cancelled' });
     }
 
-    await ExpenseRequest.findByIdAndDelete(req.params.id).session(session);
-    
-    await session.commitTransaction();
-    session.endSession();
-    
+    await ExpenseRequest.findByIdAndDelete(req.params.id);
     res.json({ message: 'Request cancelled successfully' });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

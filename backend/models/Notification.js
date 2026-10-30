@@ -4,8 +4,7 @@ const notificationSchema = new mongoose.Schema({
   recipient: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    index: true
+    required: true
   },
   type: {
     type: String,
@@ -30,5 +29,9 @@ const notificationSchema = new mongoose.Schema({
     default: false
   }
 }, { timestamps: true });
+
+// ─── Indexes ──────────────────────────────────────────────────────
+// "latest 10 for user" + "unread count" + "mark all read" — one index covers all three
+notificationSchema.index({ recipient: 1, read: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Notification', notificationSchema);

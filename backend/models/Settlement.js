@@ -25,4 +25,11 @@ const settlementSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+// ─── Indexes ──────────────────────────────────────────────────────
+// Client "my settlements" → appears as payer or receiver, sorted by date
+settlementSchema.index({ payer: 1, date: -1 });
+settlementSchema.index({ receiver: 1, date: -1 });
+// Admin "all settlements" sorted by date
+settlementSchema.index({ date: -1 });
+
 module.exports = mongoose.model('Settlement', settlementSchema);

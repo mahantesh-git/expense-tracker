@@ -59,4 +59,10 @@ const expenseRequestSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+// ─── Indexes ──────────────────────────────────────────────────────
+// Client "my requests" list
+expenseRequestSchema.index({ requestedBy: 1, createdAt: -1 });
+// Admin "pending count" + status filter
+expenseRequestSchema.index({ status: 1, createdAt: -1 });
+
 module.exports = mongoose.model('ExpenseRequest', expenseRequestSchema);

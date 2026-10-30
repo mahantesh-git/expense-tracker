@@ -5,14 +5,16 @@ const { protect } = require('../middleware/auth');
 
 // ─────────────────────────────────────────────
 // @route   GET /api/notifications
-// @desc    Get user's notifications
+// @desc    Get user's latest 10 notifications
 // @access  Private
 // ─────────────────────────────────────────────
 router.get('/', protect, async (req, res) => {
   try {
-    const notifications = await Notification.find({ recipient: req.user._id })
+    const notifications = await Notification
+      .find({ recipient: req.user._id })
       .sort({ createdAt: -1 })
-      .limit(10); // limit to recent 10
+      .limit(10)
+      .lean(); // plain JS objects — no Mongoose hydration cost
     res.json(notifications);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -26,7 +28,10 @@ router.get('/', protect, async (req, res) => {
 // ─────────────────────────────────────────────
 router.get('/unread-count', protect, async (req, res) => {
   try {
-    const count = await Notification.countDocuments({ recipient: req.user._id, read: false });
+    const count = await Notification.countDocuments({
+      recipient: req.user._id,
+      read: false
+    });
     res.json({ count });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -40,14 +45,16 @@ router.get('/unread-count', protect, async (req, res) => {
 // ─────────────────────────────────────────────
 router.put('/:id/read', protect, async (req, res) => {
   try {
-    const notification = await Notification.findOne({ _id: req.params.id, recipient: req.user._id });
-    
+    // findOneAndUpdate is a single atomic write — no need to fetch then save
+    const notification = await Notification.findOneAndUpdate(
+      { _id: req.params.id, recipient: req.user._id },
+      { $set: { read: true } },
+      { new: true, lean: true }
+    );
+
     if (!notification) {
       return res.status(404).json({ message: 'Notification not found' });
     }
-
-    notification.read = true;
-    await notification.save();
 
     res.json(notification);
   } catch (error) {

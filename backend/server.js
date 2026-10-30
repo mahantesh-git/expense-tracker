@@ -72,7 +72,14 @@ app.get('/api/health', async (req, res) => {
 
 // Database Connection
 const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/expense-tracker';
+let MONGODB_URI;
+if (process.env.DEVELOPMENT_STATE=="true") {
+  console.log('DATABASE_STATE: development database');
+  MONGODB_URI = process.env.DEVELOPMENT_DB;
+} else {
+  console.log('DATABASE_STATE: production database');
+  MONGODB_URI = process.env.PRODUCTION_DB;
+}
 
 mongoose.connect(MONGODB_URI)
   .then(async () => {

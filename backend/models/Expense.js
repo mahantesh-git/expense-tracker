@@ -33,4 +33,11 @@ const expenseSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+// ─── Indexes ──────────────────────────────────────────────────────
+// Admin "all expenses" → sorted by date
+expenseSchema.index({ date: -1 });
+// Client "my expenses" → filter by payer or split participant, sorted by date
+expenseSchema.index({ payer: 1, date: -1 });
+expenseSchema.index({ 'splits.user': 1, date: -1 });
+
 module.exports = mongoose.model('Expense', expenseSchema);

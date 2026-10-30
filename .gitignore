@@ -49,5 +49,11 @@ coverage/
 # Agent/AI directories
 .gemini/
 
-#file
-./backend/utils/migrateDB.js
+# Local MongoDB data
+data/
+
+# Local test files
+test/
+
+# Database migration script
+backend/utils/migrateDB.js

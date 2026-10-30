@@ -2,11 +2,11 @@ const express = require('express');
 const router = express.Router();
 const Expense = require('../models/Expense');
 const { protect, admin } = require('../middleware/auth');
-const mongoose=require('mongoose')
+const mongoose = require('mongoose');
 
 // @route   POST /api/expenses
 // @desc    Create an expense directly (Admin only)
-//          Clients must use POST /api/expense-requests instead — direct writes are blocked.
+//          Clients must use POST /api/expense-requests instead.
 // @access  Admin
 router.post('/', protect, admin, async (req, res) => {
   const session = await mongoose.startSession();
@@ -41,14 +41,24 @@ router.get('/', protect, async (req, res) => {
   try {
     let expenses;
     if (req.user.role === 'admin') {
-      expenses = await Expense.find({}).sort({ date: -1 }).populate('payer', 'username').populate('splits.user', 'username');
+      expenses = await Expense
+        .find({})
+        .sort({ date: -1 })
+        .populate('payer', 'username')
+        .populate('splits.user', 'username')
+        .lean();
     } else {
-      expenses = await Expense.find({
-        $or: [
-          { payer: req.user._id },
-          { 'splits.user': req.user._id }
-        ]
-      }).sort({ date: -1 }).populate('payer', 'username').populate('splits.user', 'username');
+      expenses = await Expense
+        .find({
+          $or: [
+            { payer: req.user._id },
+            { 'splits.user': req.user._id }
+          ]
+        })
+        .sort({ date: -1 })
+        .populate('payer', 'username')
+        .populate('splits.user', 'username')
+        .lean();
     }
     res.json(expenses);
   } catch (error) {
@@ -57,8 +67,7 @@ router.get('/', protect, async (req, res) => {
 });
 
 // @route   PUT /api/expenses/:id
-// @desc    Update expense
-// @access  Private (Admin only)
+// @desc    Update expense (Admin only)
 router.put('/:id', protect, admin, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -73,10 +82,10 @@ router.put('/:id', protect, admin, async (req, res) => {
       expense.payer = payer || expense.payer;
 
       const updatedExpense = await expense.save({ session });
-      
+
       await session.commitTransaction();
       session.endSession();
-      
+
       res.json(updatedExpense);
     } else {
       await session.abortTransaction();
